@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useGitHubStore } from '~/stores/github'
+import MediaViewer from '~/components/MediaViewer.vue'
 
 // Route params: /repo/:owner/:repo/:path*
 const route = useRoute()
@@ -82,7 +83,12 @@ watch(() => route.params.path, async (newPath) => {
         </div>
 
         <div v-if="filePath" class="editor-wrapper">
-             <Editor />
+             <MediaViewer 
+                v-if="store.isBinary" 
+                :content="store.currentFileContent" 
+                :path="store.currentFilePath" 
+             />
+             <Editor v-else />
              <!-- Floating chat toggle for desktop -->
              <button class="fab-chat" @click="isChatOpen = !isChatOpen" title="Gemini AI Help">
                 ✨

@@ -118,7 +118,7 @@ export const useGitHubStore = defineStore('github', () => {
       }
     }
     
-    findNode(sourceTree)
+    if (sourceTree) findNode(sourceTree)
     
     // If found, return its children as the new root
     if (targetNode && targetNode.type === 'tree' && targetNode.children) {
@@ -231,14 +231,14 @@ export const useGitHubStore = defineStore('github', () => {
     try {
       // Get the reference for the default branch
       const { data: refData } = await octokit.value.rest.git.getRef({
-        owner: currentRepo.value.full_name.split('/')[0],
+        owner: currentRepo.value.full_name.split('/')[0] ?? '',
         repo: currentRepo.value.name,
         ref: `heads/${currentBranch.value}`
       })
       
       // Get the tree recursively
       const { data: treeData } = await octokit.value.rest.git.getTree({
-        owner: currentRepo.value.full_name.split('/')[0],
+        owner: currentRepo.value.full_name.split('/')[0] ?? '',
         repo: currentRepo.value.name,
         tree_sha: refData.object.sha,
         recursive: '1'
@@ -364,7 +364,17 @@ export const useGitHubStore = defineStore('github', () => {
       })
       
       if (!Array.isArray(data) && 'content' in data) {
-         currentFileContent.value = atob(data.content.replace(/\n/g, '')) // Base64 decode
+         // Check if binary
+         const lower = path.toLowerCase()
+         const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp', '.ico', '.avif']
+         const videoExts = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v', '.ogv']
+         const isBinary = imageExts.some(ext => lower.endsWith(ext)) || videoExts.some(ext => lower.endsWith(ext))
+
+         if (isBinary) {
+             currentFileContent.value = data.content.replace(/\n/g, '') // Keep base64
+         } else {
+             currentFileContent.value = atob(data.content.replace(/\n/g, '')) // Base64 decode for text
+         }
          currentFileSha.value = data.sha
          isDirty.value = false
       }
@@ -436,6 +446,13 @@ export const useGitHubStore = defineStore('github', () => {
     fetchFileTree,
     openFile,
     saveCurrentFile,
-    updateContent
+    updateContent,
+    isBinary: computed(() => {
+      if (!currentFilePath.value) return false
+      const lower = currentFilePath.value.toLowerCase()
+      const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp', '.ico', '.avif']
+      const videoExts = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v', '.ogv']
+      return imageExts.some(ext => lower.endsWith(ext)) || videoExts.some(ext => lower.endsWith(ext))
+    })
   }
 })
