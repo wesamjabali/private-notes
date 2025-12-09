@@ -155,7 +155,7 @@ const livePreviewPlugin = ViewPlugin.fromClass(class {
              }
           }
 
-          // BLOCK ELEMENTS (Heading, Blockquote, FencedCode, Lists)
+          // BLOCK ELEMENTS (Heading, Blockquote, FencedCode, Lists, Tables)
           // Hide markers if line is NOT active
           
           if (name.startsWith('ATXHeading')) {
@@ -199,6 +199,18 @@ const livePreviewPlugin = ViewPlugin.fromClass(class {
                     node.iterate({
                        enter: (child) => {
                            if (child.type.name === 'ListMark') {
+                               builder.add(child.from, child.to, Decoration.replace({}))
+                           }
+                       }
+                   })
+               }
+          }
+
+          if (name === 'Table') {
+               if (!lineActive) {
+                    node.iterate({
+                       enter: (child) => {
+                           if (child.type.name === 'TableDelimiter') {
                                builder.add(child.from, child.to, Decoration.replace({}))
                            }
                        }
