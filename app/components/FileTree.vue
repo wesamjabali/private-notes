@@ -18,14 +18,11 @@ const toggleFolder = (node: FileNode) => {
 }
 
 const selectFile = (node: FileNode) => {
-  if (node.type === 'tree') {
-    // node.isOpen = !node.isOpen // Would need reactive node or separate state map
-    return
-  }
-  
-  // Navigate to file
-  const [owner, repo] = store.currentRepo!.full_name.split('/')
-  // path needs to be encoded? 
+  // Always navigate
+  if (!store.currentRepo) return
+  const [owner, repo] = store.currentRepo.full_name.split('/')
+  // Encode path components just in case, though usually safe-ish in internal routing
+  // But joining with / is standard for this catch-all
   router.push(`/repo/${owner}/${repo}/${node.path}`)
 }
 

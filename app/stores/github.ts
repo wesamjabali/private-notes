@@ -416,10 +416,68 @@ export const useGitHubStore = defineStore('github', () => {
     }
   }
   
+  const getRawContent = async (path: string): Promise<string | null> => {
+    if (!octokit.value || !currentRepo.value) return null
+    
+    // 1. Try to find SHA in fileTree to use getBlob (supports up to 100MB)
+    const findSha = (nodes: FileNode[], targetPath: string): string | undefined => {
+        for (const node of nodes) {
+            if (node.path === targetPath) return node.sha
+            if (node.children) {
+                const found = findSha(node.children, targetPath)
+                if (found) return found
+            }
+        }
+    }
+    
+     // We search in the full fileTree (not just visible/filtered one)
+    const sha = findSha(fileTree.value, path)
+    
+    try {
+      if (sha) {
+         const { data } = await octokit.value.rest.git.getBlob({
+            owner: currentRepo.value.full_name.split('/')[0] ?? '',
+            repo: currentRepo.value.name,
+            file_sha: sha
+         })
+         return data.content.replace(/\n/g, '')
+      }
+      
+      // Fallback to getContent (max 1MB)
+      const { data } = await octokit.value.rest.repos.getContent({
+        owner: currentRepo.value.full_name.split('/')[0] ?? '',
+        repo: currentRepo.value.name,
+        path: path,
+        ref: currentBranch.value
+      })
+      
+      if (!Array.isArray(data) && 'content' in data) {
+          return data.content.replace(/\n/g, '')
+      }
+      return null
+    } catch (e) {
+      console.warn("Failed to fetch raw content for", path, e)
+      return null
+    }
+  }
+
   // Helpers
   const updateContent = (newContent: string) => {
     currentFileContent.value = newContent
     isDirty.value = true
+  }
+
+  const getNodeByPath = (path: string): FileNode | undefined => {
+      const findNode = (nodes: FileNode[], targetPath: string): FileNode | undefined => {
+          for (const node of nodes) {
+              if (node.path === targetPath) return node
+              if (node.children) {
+                  const found = findNode(node.children, targetPath)
+                  if (found) return found
+              }
+          }
+      }
+      return findNode(fileTree.value, path)
   }
 
   return {
@@ -431,6 +489,7 @@ export const useGitHubStore = defineStore('github', () => {
     fileTree,
     visibleFileTree,
     filteredFileTree,
+    getNodeByPath,
     mainFolder,
     currentFilePath,
     currentFileContent,
@@ -446,6 +505,7 @@ export const useGitHubStore = defineStore('github', () => {
     fetchFileTree,
     openFile,
     saveCurrentFile,
+    getRawContent,
     updateContent,
     isBinary: computed(() => {
       if (!currentFilePath.value) return false

@@ -2,6 +2,8 @@
 import { useGitHubStore } from '~/stores/github'
 import MediaViewer from '~/components/MediaViewer.vue'
 
+import FolderView from '~/components/FolderView.vue'
+
 // Route params: /repo/:owner/:repo/:path*
 const route = useRoute()
 const router = useRouter()
@@ -12,6 +14,10 @@ const repoName = route.params.repo as string
 // path is an array of strings
 const pathSegments = computed(() => route.params.path as string[] || [])
 const filePath = computed(() => pathSegments.value.join('/'))
+
+const fileNode = computed(() => store.getNodeByPath(filePath.value))
+const isFolder = computed(() => fileNode.value?.type === 'tree')
+const folderChildren = computed(() => fileNode.value?.children || [])
 
 const isSidebarOpen = ref(true)
 const isChatOpen = ref(false)
@@ -45,7 +51,13 @@ onMounted(async () => {
 
     // If path exists, open it
     if (filePath.value) {
-        await store.openFile(filePath.value)
+        const node = store.getNodeByPath(filePath.value)
+        if (node && node.type === 'tree') {
+            store.currentFilePath = filePath.value
+            store.currentFileContent = ''
+        } else {
+            await store.openFile(filePath.value)
+        }
     }
 })
 
@@ -53,7 +65,13 @@ onMounted(async () => {
 watch(() => route.params.path, async (newPath) => {
     const p = (newPath as string[] || []).join('/')
     if (p && p !== store.currentFilePath) {
-        await store.openFile(p)
+        const node = store.getNodeByPath(p)
+        if (node && node.type === 'tree') {
+            store.currentFilePath = p
+            store.currentFileContent = ''
+        } else {
+            await store.openFile(p)
+        }
     }
 })
 
@@ -87,8 +105,13 @@ definePageMeta({
         </div>
 
         <div v-if="filePath" class="editor-wrapper">
+             <FolderView
+                v-if="isFolder"
+                :nodes="folderChildren"
+                :current-path="filePath"
+             />
              <MediaViewer 
-                v-if="store.isBinary" 
+                v-else-if="store.isBinary" 
                 :content="store.currentFileContent" 
                 :path="store.currentFilePath" 
              />

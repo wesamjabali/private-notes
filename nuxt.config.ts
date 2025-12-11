@@ -12,5 +12,12 @@ export default defineNuxtConfig({
     githubClientId: '',
     githubClientSecret: '',
     baseUrl: process.env.BASE_URL || 'http://localhost:3000'
+  },
+  app: {
+    head: {
+      meta: [
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0' }
+      ]
+    }
   }
 })
