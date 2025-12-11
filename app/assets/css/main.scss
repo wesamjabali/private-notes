@@ -3,28 +3,31 @@
 
 :root {
   /* HSL Color Palette - Premium Dark Theme */
-  --hue-primary: 260; /* Deep Purple/Indigo */
-  --hue-secondary: 190; /* Cyan */
-  --hue-accent: 330; /* Pink/Magenta */
-  
+  --hue-primary: 260;
+  /* Deep Purple/Indigo */
+  --hue-secondary: 190;
+  /* Cyan */
+  --hue-accent: 330;
+  /* Pink/Magenta */
+
   /* Backgrounds */
   --bg-dark-100: hsl(240, 10%, 4%);
   --bg-dark-200: hsl(240, 10%, 6%);
   --bg-dark-300: hsl(240, 10%, 9%);
   --bg-dark-400: hsl(240, 10%, 12%);
   --bg-dark-glass: hsla(240, 10%, 6%, 0.8);
-  
+
   /* Text */
   --text-primary: hsl(0, 0%, 98%);
   --text-secondary: hsl(0, 0%, 70%);
   --text-muted: hsl(0, 0%, 50%);
-  
+
   /* Brand Colors */
   --color-primary: hsl(var(--hue-primary), 70%, 60%);
   --color-primary-dim: hsl(var(--hue-primary), 60%, 40%);
   --color-secondary: hsl(var(--hue-secondary), 80%, 60%);
   --color-accent: hsl(var(--hue-accent), 80%, 60%);
-  
+
   /* Borders */
   --border-subtle: hsla(240, 10%, 100%, 0.1);
   --border-focus: hsla(var(--hue-primary), 70%, 60%, 0.5);
@@ -34,7 +37,7 @@
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
   --radius-full: 9999px;
-  
+
   /* Typography */
   --font-sans: 'Outfit', sans-serif;
   --font-body: 'Inter', sans-serif;
@@ -42,7 +45,9 @@
 }
 
 /* Reset / Base */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -58,7 +63,12 @@ body {
   min-height: 100vh;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-sans);
   font-weight: 600;
   color: white;
@@ -69,7 +79,7 @@ a {
   color: var(--color-primary);
   text-decoration: none;
   transition: color 0.2s;
-  
+
   &:hover {
     color: lighten(hsl(260, 70%, 60%), 10%);
   }
@@ -100,13 +110,16 @@ a {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--bg-dark-400);
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-primary-dim);
 }
@@ -116,6 +129,7 @@ a {
 .page-leave-active {
   transition: all 0.25s ease;
 }
+
 .page-enter-from,
 .page-leave-to {
   opacity: 0;

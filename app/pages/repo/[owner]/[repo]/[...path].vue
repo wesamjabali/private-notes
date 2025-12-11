@@ -547,6 +547,14 @@ definePageMeta({
   border-top: none;
   z-index: 10; /* Ensure above editor content */
 
+  @media (max-width: 768px) {
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
   .header-left,
   .header-right {
     display: flex;
