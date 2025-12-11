@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const redirectUri = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&scope=repo,user`
+  const redirectUri = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&scope=repo&prompt=consent`
   
   return sendRedirect(event, redirectUri)
 })
