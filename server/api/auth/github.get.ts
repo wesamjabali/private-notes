@@ -8,8 +8,17 @@ export default defineEventHandler(async (event) => {
       statusMessage: 'Missing GitHub Client ID configuration'
     })
   }
-
-  const redirectUri = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&scope=repo&prompt=consent`
   
-  return sendRedirect(event, redirectUri)
+  console.log('[Auth] Starting OAuth flow with Client ID:', githubClientId)
+
+  // Determine the base URL dynamically or fallback to localhost
+  const requestUrl = getRequestURL(event)
+  const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`
+  const redirectUri = `${baseUrl}/api/auth/callback`
+
+  console.log('[Auth] Redirect URI:', redirectUri)
+
+  const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&scope=repo&redirect_uri=${encodeURIComponent(redirectUri)}&prompt=consent`
+  
+  return sendRedirect(event, githubAuthUrl)
 })

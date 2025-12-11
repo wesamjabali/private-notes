@@ -57,6 +57,10 @@ watch(() => route.params.path, async (newPath) => {
     }
 })
 
+definePageMeta({
+    key: route => `repo-${route.params.owner}-${route.params.repo}`
+})
+
 </script>
 
 <template>

@@ -1,6 +1,7 @@
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
   const { githubClientId, githubClientSecret } = config
+  const requestUrl = getRequestURL(event)
   const query = getQuery(event)
   const code = query.code
 
@@ -17,7 +18,8 @@ export default defineEventHandler(async (event) => {
       body: {
         client_id: githubClientId,
         client_secret: githubClientSecret,
-        code
+        code,
+        redirect_uri: `${requestUrl.protocol}//${requestUrl.host}/api/auth/callback`
       },
       headers: {
         Accept: 'application/json'
@@ -31,7 +33,14 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    const { access_token } = response
+    const { access_token, scope, error_description } = response
+
+    console.log('[Auth] Client Config Check - ID present:', !!githubClientId, 'Secret present:', !!githubClientSecret)
+    console.log('[Auth] Full Token Response:', JSON.stringify(response))
+    
+    if (error_description) {
+      console.error('[Auth] OAuth Error Description:', error_description)
+    }
 
     // Redirect to home with token in query param (simple handoff)
     return sendRedirect(event, `/?token=${access_token}`)

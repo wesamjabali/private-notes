@@ -1,0 +1,9 @@
+.git
+.gitignore
+.nuxt
+.output
+node_modules
+*.log
+.env
+.DS_Store
+README.md
