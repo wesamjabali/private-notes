@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFileActions } from '~/composables/useFileActions';
 import { type FileNode } from '~/stores/github';
 
 const props = defineProps<{
@@ -7,11 +8,12 @@ const props = defineProps<{
 }>()
 
 const router = useRouter()
+const route = useRoute()
 const store = useGitHubStore()
 
 const navigateTo = (node: FileNode) => {
     const [owner, repo] = store.currentRepo!.full_name.split('/')
-    router.push(`/repo/${owner}/${repo}/${node.path}`)
+    router.push({ path: `/repo/${owner}/${repo}/${node.path}`, query: route.query })
 }
 
 const getIcon = (node: FileNode) => {
@@ -27,26 +29,120 @@ const navigateUp = () => {
     if (parts.length <= 1) {
         // Go to root
          const [owner, repo] = store.currentRepo!.full_name.split('/')
-         router.push(`/repo/${owner}/${repo}/`)
+         router.push({ path: `/repo/${owner}/${repo}/`, query: route.query })
     } else {
         parts.pop() // remove last segment
         const parentPath = parts.join('/')
         const [owner, repo] = store.currentRepo!.full_name.split('/')
-        router.push(`/repo/${owner}/${repo}/${parentPath}`)
+        router.push({ path: `/repo/${owner}/${repo}/${parentPath}`, query: route.query })
     }
 }
 
 const folders = computed(() => (props.currentPath ? [{ name: '..', path: '..' }] : []).concat(props.nodes.filter(n => n.type === 'tree')))
 const files = computed(() => props.nodes.filter(n => n.type !== 'tree'))
+
+// Shared Actions
+const { createFolder, createNote, triggerUpload, handleDrop } = useFileActions()
+
+const onNewFolder = () => createFolder(props.currentPath)
+const onNewNote = () => createNote(props.currentPath)
+const onUpload = () => triggerUpload(props.currentPath)
+
+// Drag and Drop
+const isDragging = ref(false)
+
+const onDragOver = (e: DragEvent) => {
+    e.preventDefault()
+    isDragging.value = true
+}
+
+const onDragLeave = (e: DragEvent) => {
+    e.preventDefault()
+    isDragging.value = false
+}
+
+const onDrop = async (e: DragEvent) => {
+    e.preventDefault()
+    isDragging.value = false
+    
+    if (e.dataTransfer?.files) {
+        const fileList = Array.from(e.dataTransfer.files)
+        if (fileList.length > 0) {
+            await handleDrop(fileList, props.currentPath)
+        }
+    }
+}
+
+// In-Place Creation Logic
+const creationName = ref('')
+const creationInput = ref<HTMLInputElement | null>(null)
+
+watch(() => store.pendingCreation, async (val) => {
+  if (val && val.parentPath === props.currentPath) {
+    creationName.value = ''
+    await nextTick()
+    creationInput.value?.focus()
+  }
+})
+
+const onConfirmCreation = async () => {
+    if (creationName.value) {
+        await store.confirmCreation(creationName.value)
+    } else {
+        store.cancelCreation()
+    }
+}
 </script>
 
 <template>
-  <div class="folder-view">
+  <div 
+    class="folder-view"
+    :class="{ 'dragging': isDragging }"
+    @dragover="onDragOver"
+    @dragleave="onDragLeave"
+    @drop="onDrop"
+  >
+    <ClientOnly>
+        <Teleport to="#header-actions">
+            <div class="toolbar-actions">
+                <button @click="onNewFolder" class="action-btn">
+                    <span class="icon">📁+</span> New Folder
+                </button>
+                <button @click="onNewNote" class="action-btn">
+                    <span class="icon">📝+</span> New Note
+                </button>
+                <button @click="onUpload" class="action-btn">
+                    <span class="icon">⬆️</span> Upload
+                </button>
+            </div>
+        </Teleport>
+    </ClientOnly>
+
     <div class="bookshelf">
         <!-- Folders Section -->
         <div v-if="folders.length > 0" class="shelf-section">
             <h3 class="shelf-label">Folders</h3>
             <div class="grid">
+                <!-- Creation Card (Folder) -->
+                <div 
+                    v-if="store.pendingCreation && store.pendingCreation.type === 'tree' && store.pendingCreation.parentPath === currentPath"
+                    class="item-card folder-card creation-card"
+                >
+                    <div class="folder-tab"></div>
+                    <div class="folder-body">
+                        <span class="icon">📁</span>
+                        <input 
+                            ref="creationInput"
+                            v-model="creationName"
+                            @keydown.enter="onConfirmCreation"
+                            @keydown.esc="store.cancelCreation()"
+                            @blur="store.cancelCreation()"
+                            class="creation-input"
+                            placeholder="New Folder"
+                        />
+                    </div>
+                </div>
+
                 <div 
                     v-for="folder in folders" 
                     :key="folder.path"
@@ -66,6 +162,29 @@ const files = computed(() => props.nodes.filter(n => n.type !== 'tree'))
         <div v-if="files.length > 0" class="shelf-section">
             <h3 class="shelf-label">Documents</h3>
             <div class="grid">
+                <!-- Creation Card (File) -->
+                <div 
+                    v-if="store.pendingCreation && store.pendingCreation.type === 'blob' && store.pendingCreation.parentPath === currentPath"
+                    class="item-card file-card creation-card"
+                >
+                   <div class="paper-sheet">
+                        <div class="line"></div>
+                        <div class="line"></div>
+                        <div class="content-preview">
+                            <span class="file-icon">📝</span>
+                            <input 
+                                ref="creationInput"
+                                v-model="creationName"
+                                @keydown.enter="onConfirmCreation"
+                                @keydown.esc="store.cancelCreation()"
+                                @blur="store.cancelCreation()"
+                                class="creation-input"
+                                placeholder="New Note"
+                            />
+                        </div>
+                   </div>
+                </div>
+
                 <div 
                     v-for="file in files" 
                     :key="file.path"
@@ -98,6 +217,39 @@ const files = computed(() => props.nodes.filter(n => n.type !== 'tree'))
     height: 100%;
     overflow-y: auto;
     background: var(--bg-dark-100);
+}
+
+.dragging {
+    border: 2px dashed var(--color-primary);
+    background: var(--bg-dark-200);
+}
+
+.toolbar-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-dark-200);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+
+    &:hover {
+        background: var(--bg-dark-300);
+        border-color: var(--color-primary-dim);
+    }
+
+    .icon {
+        font-size: 1.1rem;
+    }
 }
 
 .bookshelf {
@@ -167,6 +319,7 @@ const files = computed(() => props.nodes.filter(n => n.type !== 'tree'))
             overflow: hidden;
             display: -webkit-box;
             -webkit-line-clamp: 2;
+            line-clamp: 2;
             -webkit-box-orient: vertical;
             word-break: break-word; /* Ensure long names wrap */
         }
@@ -251,5 +404,17 @@ const files = computed(() => props.nodes.filter(n => n.type !== 'tree'))
     text-align: center;
     color: var(--text-muted);
     padding: 3rem;
+}
+
+.creation-input {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid var(--color-primary);
+    color: var(--text-primary);
+    width: 100%;
+    outline: none;
+    text-align: center;
+    font-size: 0.9rem;
+    padding: 0.2rem 0;
 }
 </style>

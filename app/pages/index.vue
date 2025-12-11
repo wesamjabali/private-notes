@@ -104,12 +104,18 @@ const selectRepo = (repo: Repo) => {
         
         <div class="repo-grid">
           <div 
-            v-for="repo in store.repos" 
+            v-for="repo in store.sortedRepos" 
             :key="repo.id"
             class="repo-card glass-panel"
             @click="selectRepo(repo)"
           >
-            <h3>{{ repo.name }}</h3>
+            <div class="card-header">
+              <h3>{{ repo.name }}</h3>
+              <button class="btn-star" @click.stop="store.toggleFavorite(repo.full_name)">
+                <svg v-if="store.favorites.includes(repo.full_name)" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="star-filled"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="star-outline"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              </button>
+            </div>
             <p>{{ repo.description || 'No description' }}</p>
             <span class="updated">Updated {{ new Date(repo.updated_at).toLocaleDateString() }}</span>
           </div>
@@ -274,7 +280,37 @@ const selectRepo = (repo: Repo) => {
     border-color: var(--color-primary);
   }
   
-  h3 { margin-bottom: 0.5rem; color: var(--color-primary); }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+    
+    h3 { margin: 0; color: var(--color-primary); line-height: 1.2; }
+  }
+
+  .btn-star {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, transform 0.2s;
+    z-index: 2;
+    
+    &:hover {
+      color: var(--color-accent); // Gold/Yellow
+      transform: scale(1.1);
+    }
+    
+    .star-filled {
+      color: var(--color-accent);
+    }
+  }
+
   p { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem; line-height: 1.4; }
   .updated { font-size: 0.8rem; color: var(--text-muted); }
 }

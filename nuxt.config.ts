@@ -15,8 +15,18 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
+      title: 'GitNotes',
       meta: [
-        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0' }
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0' },
+        { name: 'description', content: 'Secure, private, and beautiful notes application.' },
+        { property: 'og:title', content: 'GitNotes' },
+        { property: 'og:description', content: 'Secure, private, and beautiful notes application by Wesam Jabali' },
+        { property: 'og:image', content: '/social-card.png' },
+        { name: 'twitter:card', content: 'summary_large_image' }
+      ],
+      link: [
+        { rel: 'icon', type: 'image/png', href: '/favicon.png' }
       ]
     }
   }

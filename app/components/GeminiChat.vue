@@ -1,12 +1,43 @@
 <script setup lang="ts">
-import { useGeminiStore } from '~/stores/gemini'
-import { useGitHubStore } from '~/stores/github'
+import { useGeminiStore } from '~/stores/gemini';
+import { useGitHubStore } from '~/stores/github';
 
 const props = defineProps<{
   isOpen: boolean
 }>()
 
 const emit = defineEmits(['close'])
+
+  // Save AI-generated content as a new markdown note
+  const saveAsNewNote = async (content: string) => {
+    if (!gitStore.currentRepo.value) {
+      console.warn('No repository selected')
+      return
+    }
+    // Generate a filename based on timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const filename = `ai-note-${timestamp}.md`
+    const path = filename
+    try {
+      await gitStore.createFile(path, content, 'Create AI note')
+      // Optionally open the new file
+      await gitStore.openFile(path)
+    } catch (e) {
+      console.error('Failed to save AI note', e)
+    }
+  }
+
+  // Append or replace content of the currently open note with AI-generated content
+  const editCurrentNote = async (content: string) => {
+    if (!gitStore.currentFilePath.value) {
+      console.warn('No active file to edit')
+      return
+    }
+    // Replace the entire content with the AI suggestion
+    gitStore.updateContent(content)
+    // Save the file to remote
+    await gitStore.saveCurrentFile('Update via AI')
+  }
 
 const store = useGeminiStore()
 const gitStore = useGitHubStore()
@@ -66,6 +97,16 @@ const saveKey = (key: string) => {
       <a href="https://aistudio.google.com/app/apikey" target="_blank" class="link">Get API Key</a>
       <button v-if="store.apiKey" @click="showKeyInput = false" class="btn-text">Back to Chat</button>
     </div>
+    <!-- AI Note Operations -->
+    <template v-if="store.history.length > 0">
+      <div v-for="(msg, i) in store.history" :key="i" class="message-bubble" :class="msg.role">
+        <div class="bubble-content">{{ msg.text }}</div>
+        <div class="ai-actions" v-if="msg.role === 'model'">
+          <button class="save-btn" @click="saveAsNewNote(msg.text)">Save as new note</button>
+          <button class="edit-btn" v-if="gitStore.currentFilePath" @click="editCurrentNote(msg.text)">Edit current note</button>
+        </div>
+      </div>
+    </template>
 
     <template v-else>
       <div class="messages" ref="scrollTarget">

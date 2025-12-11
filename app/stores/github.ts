@@ -1,8 +1,9 @@
 
-import { useStorage } from '@vueuse/core'
+import { useStorage, useStorageAsync } from '@vueuse/core'
+import { del, get, set } from 'idb-keyval'
 import { Octokit } from 'octokit'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 export interface GitHubUser {
   login: string
@@ -31,11 +32,17 @@ export interface FileNode {
   children?: FileNode[]
 }
 
+export interface Template {
+  name: string
+  path: string
+}
+
 export const useGitHubStore = defineStore('github', () => {
   // State
   const token = useStorage('gh_token', '')
   const lastRepoFullName = useStorage('gh_last_repo', '')
   const showHiddenFiles = useStorage('gh_show_hidden', false)
+  const favorites = useStorage<string[]>('gh_favorites', [])
   const user = ref<GitHubUser | null>(null)
   const octokit = ref<Octokit | null>(null)
   
@@ -45,53 +52,47 @@ export const useGitHubStore = defineStore('github', () => {
   
   const fileTree = ref<FileNode[]>([])
   const mainFolder = useStorage<string | null>('gh_main_folder', null)
+  
+  // Custom storage wrapper for idb-keyval to work with useStorageAsync
+  const idbStorage = {
+    getItem: async (key: string) => {
+      return await get(key)
+    },
+    setItem: async (key: string, value: string) => {
+      await set(key, value)
+    },
+    removeItem: async (key: string) => {
+      await del(key)
+    }
+  }
+
+  // Persist unsaved changes in IndexedDB
+  // Key: filePath, Value: { content: string, timestamp: number, sha: string | null }
+  const unsavedChanges = useStorageAsync<Record<string, { content: string, timestamp: number, sha: string | null }>>(
+    'gh_unsaved_changes', 
+    {}, 
+    idbStorage
+  )
 
   // Reactive filtering of hidden files
   const visibleFileTree = computed(() => {
     if (showHiddenFiles.value) return fileTree.value
 
-    const filterNodes = (nodes: FileNode[]): FileNode[] => {
-      return nodes.filter(node => {
-        if (node.name.startsWith('.')) return false
-        if (node.children) {
-          // Clone node to avoid mutating original state if we needed deep mutability, 
-          // but for filtering children we need a new array refs. 
-          // Actually, since we don't want to mutate the original tree structure which might be used elsewhere (unlikely here but good practice),
-          // we should return new objects if children change. 
-          // However, for simple filtering, we can just return a filtered view if we don't mutate.
-          // But `node` object is shared. improving:
-          // We need to return a new node structure if we filter children, otherwise we mutate the original `children` array if we were to assign,
-          // OR we return a new array of nodes where children are filtered.
-          // Since Vue refs are deep, we need to be careful.
-          
-          // Simpler approach: Create a recursive filter function that returns new nodes only if children change?
-          // Let's just create a computed view that maps/filters.
-        }
-        return true
-      }).map((node: FileNode) => {
-         if (node.children) {
-             return { ...node, children: filterNodes(node.children) }
-         }
-         return node
-      })
-    }
-    
-    // Better implementation:
     const filterRecursive = (nodes: FileNode[]): FileNode[] => {
-        return nodes.reduce((acc, node) => {
-            const isHidden = node.name.startsWith('.')
-            if (isHidden) return acc
-            
-            if (node.children) {
-                // If it has children, we need to filter them too. 
-                // We create a shallow copy to attach filtered children, preserving the original tree intact.
-                const filteredChildren = filterRecursive(node.children)
-                acc.push({ ...node, children: filteredChildren })
-            } else {
-                acc.push(node)
-            }
-            return acc
-        }, [] as FileNode[])
+      return nodes.reduce<FileNode[]>((acc, node) => {
+        const isHidden = node.name.startsWith('.')
+        if (isHidden) return acc
+
+        if (node.children) {
+          // If it has children, we need to filter them too. 
+          // We create a shallow copy to attach filtered children, preserving the original tree intact.
+          const filteredChildren = filterRecursive(node.children)
+          acc.push({ ...node, children: filteredChildren })
+        } else {
+          acc.push(node)
+        }
+        return acc
+      }, [])
     }
 
     return filterRecursive(fileTree.value)
@@ -132,10 +133,18 @@ export const useGitHubStore = defineStore('github', () => {
   const currentFilePath = ref<string | null>(null)
   const currentFileContent = ref<string>('')
   const currentFileSha = ref<string | null>(null)
+
   const isDirty = ref(false)
+  const forceText = ref(false)
   
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  
+  // Pending Creation State
+  const pendingCreation = ref<{
+      parentPath: string | null, // null for root
+      type: 'blob' | 'tree'
+  } | null>(null)
 
   // Actions
   const init = async () => {
@@ -211,6 +220,42 @@ export const useGitHubStore = defineStore('github', () => {
     }
   }
 
+  const sortedRepos = computed(() => {
+    return [...repos.value].sort((a, b) => {
+      const aFav = favorites.value.includes(a.full_name)
+      const bFav = favorites.value.includes(b.full_name)
+      if (aFav && !bFav) return -1
+      if (!aFav && bFav) return 1
+      return 0 // Keep existing sort (updated desc)
+    })
+  })
+
+  const toggleFavorite = (repoFullName: string) => {
+    const idx = favorites.value.indexOf(repoFullName)
+    if (idx === -1) {
+      favorites.value.push(repoFullName)
+    } else {
+      favorites.value.splice(idx, 1)
+    }
+  }
+
+  const fetchRepo = async (owner: string, name: string): Promise<Repo | null> => {
+    if (!octokit.value) return null
+    isLoading.value = true
+    try {
+      const { data } = await octokit.value.rest.repos.get({
+        owner,
+        repo: name
+      })
+      return data as Repo
+    } catch (e: any) {
+      console.error('Failed to fetch repo', e)
+      return null
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   const selectRepo = async (repo: Repo) => {
     currentRepo.value = repo
     lastRepoFullName.value = repo.full_name || ''
@@ -219,14 +264,19 @@ export const useGitHubStore = defineStore('github', () => {
     await fetchFileTree()
   }
 
-  const setMainFolder = (path: string | null) => {
-    mainFolder.value =  mainFolder.value === path ? null : path
+  const setMainFolder = (path: string | null, toggle = true) => {
+    if (toggle && mainFolder.value === path) {
+      mainFolder.value = null
+    } else {
+      mainFolder.value = path
+    }
   }
 
   const fetchFileTree = async () => {
     if (!octokit.value || !currentRepo.value) return
     isLoading.value = true
-    fileTree.value = []
+    // Do not clear fileTree here to support background refresh
+    // fileTree.value = [] 
     
     try {
       // Get the reference for the default branch
@@ -353,7 +403,9 @@ export const useGitHubStore = defineStore('github', () => {
   const openFile = async (path: string) => {
     if (!octokit.value || !currentRepo.value) return
     isLoading.value = true
+
     currentFilePath.value = path
+    forceText.value = false
     
     try {
       const { data } = await octokit.value.rest.repos.getContent({
@@ -369,21 +421,63 @@ export const useGitHubStore = defineStore('github', () => {
          const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp', '.ico', '.avif']
          const videoExts = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v', '.ogv']
          const isBinary = imageExts.some(ext => lower.endsWith(ext)) || videoExts.some(ext => lower.endsWith(ext))
+         
+         const encoding = (data as any).encoding // 'base64' or undefined/none
 
+         let content = ''
          if (isBinary) {
-             currentFileContent.value = data.content.replace(/\n/g, '') // Keep base64
+             if (encoding === 'base64') {
+                 content = data.content.replace(/\n/g, '') // Keep base64
+             } else {
+                 // Content is raw text (e.g. svg or misidentified text file), but we treat as binary/image.
+                 // Treat as text
+                 forceText.value = true
+                 content = data.content
+             }
          } else {
-             currentFileContent.value = atob(data.content.replace(/\n/g, '')) // Base64 decode for text
+             if (encoding === 'base64') {
+                 // Correctly decode Base64 UTF-8 content
+                 const binary = atob(data.content.replace(/\n/g, ''))
+                 const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
+                 content = new TextDecoder().decode(bytes)
+             } else {
+                 content = data.content // Already text
+             }
          }
+         
          currentFileSha.value = data.sha
-         isDirty.value = false
+         
+         // Check for unsaved changes
+         if (unsavedChanges.value[path]) {
+            const saved = unsavedChanges.value[path]
+            // We could check if sha matches to see if remote updated in mean time, 
+            // but for now we prioritize local unsaved work.
+            console.log('Restoring unsaved changes for', path)
+            currentFileContent.value = saved.content
+            isDirty.value = true
+         } else {
+            currentFileContent.value = content
+            isDirty.value = false
+         }
       }
     } catch (e: any) {
-      error.value = "Failed to open file: " + e.message
-    } finally {
-      isLoading.value = false
+    // Handle 404 - file doesn't exist (e.g., was deleted)
+    if (e.status === 404) {
+      console.warn('File not found, clearing state:', path)
+      currentFilePath.value = null
+      currentFileContent.value = ''
+      currentFileSha.value = null
+      isDirty.value = false
+      error.value = null // Don't show error for deleted files
+      return false
     }
+    error.value = "Failed to open file: " + e.message
+    return false
+  } finally {
+    isLoading.value = false
   }
+  return true
+}
 
   const saveCurrentFile = async (message: string = 'Update file via Private Notes') => {
     if (!octokit.value || !currentRepo.value || !currentFilePath.value || !currentFileSha.value) return
@@ -398,8 +492,8 @@ export const useGitHubStore = defineStore('github', () => {
       const { data } = await octokit.value.rest.repos.createOrUpdateFileContents({
         owner: currentRepo.value.full_name.split('/')[0] ?? '',
         repo: currentRepo.value.name,
-        path: currentFilePath.value,
-        message: message,
+        path: currentFilePath.value!,
+        message: message || 'Update file',
         content: contentEncoded,
         sha: currentFileSha.value,
         branch: currentBranch.value
@@ -409,6 +503,11 @@ export const useGitHubStore = defineStore('github', () => {
       currentFileSha.value = data.content?.sha || null
       isDirty.value = false
       
+      // Clear unsaved changes
+      if (unsavedChanges.value[currentFilePath.value]) {
+        delete unsavedChanges.value[currentFilePath.value]
+      }
+      
     } catch (e: any) {
       error.value = "Failed to save: " + e.message
     } finally {
@@ -416,6 +515,498 @@ export const useGitHubStore = defineStore('github', () => {
     }
   }
   
+  const createFile = async (path: string, content: string, message: string = 'Create file', skipTreeRefresh = false, isBase64 = false) => {
+    if (!octokit.value || !currentRepo.value) return
+    isLoading.value = true
+    error.value = null
+
+    try {
+      // Base64 encode content if not already
+      let contentEncoded = content
+      if (!isBase64) {
+          contentEncoded = btoa(unescape(encodeURIComponent(content)))
+      }
+
+      const { data } = await octokit.value.rest.repos.createOrUpdateFileContents({
+        owner: currentRepo.value.full_name.split('/')[0] ?? '',
+        repo: currentRepo.value.name,
+        path: path,
+        message: message,
+        content: contentEncoded,
+        branch: currentBranch.value
+      })
+
+      // Refresh tree
+      if (skipTreeRefresh) {
+          fetchFileTree() // Background update
+      } else {
+          await fetchFileTree()
+      }
+      return data
+    } catch (e: any) {
+      error.value = "Failed to create file: " + e.message
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Template Selection State
+  const pendingTemplateSelection = ref<{
+      parentPath: string | null,
+      filename: string,
+      templates: Template[]
+  } | null>(null)
+
+  const findTemplates = () => {
+      const templates: Template[] = []
+      
+      const search = (nodes: FileNode[]) => {
+          for (const node of nodes) {
+              if (node.type === 'tree') {
+                  if (node.name === 'templates') {
+                      // Found a templates folder - get all direct markdown children
+                      if (node.children) {
+                          node.children.forEach(child => {
+                              if (child.type === 'blob' && child.name.endsWith('.md')) {
+                                  templates.push({
+                                      name: child.name.replace('.md', ''),
+                                      path: child.path
+                                  })
+                              }
+                          })
+                      }
+                      // Do not recurse into subfolders of 'templates' as per requirements
+                  } else {
+                      // Recurse
+                      if (node.children) {
+                          search(node.children)
+                      }
+                  }
+              }
+          }
+      }
+      
+      search(fileTree.value)
+      return templates
+  }
+
+  const applyTemplate = async (template: Template | null) => {
+      if (!pendingTemplateSelection.value) return
+      
+      const { parentPath, filename } = pendingTemplateSelection.value
+      const fullPath = parentPath ? `${parentPath}/${filename}` : filename
+      
+      let content = '# ' + filename.replace('.md', '')
+      
+      if (template) {
+          try {
+              const raw = await getRawContent(template.path)
+              if (raw) {
+                   // Correctly decode Base64 UTF-8 content
+                   const binary = atob(raw)
+                   const bytes = Uint8Array.from(binary, c => c.charCodeAt(0))
+                   content = new TextDecoder().decode(bytes)
+              }
+          } catch (e) {
+              console.error("Failed to load template", e)
+          }
+      }
+      
+      try {
+           // We use the same optimistic logic here if we wanted, but for now applyTemplate 
+           // can use the safer full wait approach or we can also optimize it.
+           // Let's optimize it to be consistent with confirmCreation
+           const data = await createFile(fullPath, content, 'Create file from template', true)
+           
+           // Optimistic update
+           addToTree(fullPath, filename, 'blob', data?.content?.sha || 'pending')
+           
+           // Open immediately
+           currentFilePath.value = fullPath
+           currentFileContent.value = content
+           currentFileSha.value = data?.content?.sha || null
+           isDirty.value = false
+           
+      } catch (e) {
+          console.error(e)
+          throw e
+      } finally {
+          pendingTemplateSelection.value = null
+      }
+  }
+
+  const cancelTemplateSelection = () => {
+      pendingTemplateSelection.value = null
+  }
+
+  // In-place creation actions
+  const startCreation = (parentPath: string | null, type: 'blob' | 'tree') => {
+      pendingCreation.value = { parentPath, type }
+  }
+  
+  const cancelCreation = () => {
+      pendingCreation.value = null
+  }
+  
+  const addToTree = (fullPath: string, name: string, type: 'blob' | 'tree', sha: string) => {
+       const newNode: FileNode = {
+           path: fullPath,
+           name: name,
+           type: type,
+           mode: '100644', // dummy
+           sha: sha,
+           url: '', // dummy
+           children: type === 'tree' ? [] : undefined
+       }
+       
+       const insert = (nodes: FileNode[]) => {
+           nodes.push(newNode)
+           // sort
+           nodes.sort((a, b) => {
+               if (a.type === b.type) return a.name.localeCompare(b.name)
+               return a.type === 'tree' ? -1 : 1
+           })
+       }
+       
+       if (!fullPath.includes('/')) {
+           // Root
+           insert(fileTree.value)
+       } else {
+           const parentPath = fullPath.substring(0, fullPath.lastIndexOf('/'))
+           
+           const findParent = (nodes: FileNode[]): FileNode | undefined => {
+               for (const node of nodes) {
+                   if (node.path === parentPath) return node
+                   if (node.children) {
+                       const found = findParent(node.children)
+                       if (found) return found
+                   }
+               }
+           }
+           
+           const parent = findParent(fileTree.value)
+           if (parent && parent.children) {
+               insert(parent.children)
+           }
+       }
+  }
+  
+  const confirmCreation = async (name: string) => {
+      if (!pendingCreation.value) return
+      
+      const { parentPath, type } = pendingCreation.value
+      // Validate name
+      if (!name.trim()) {
+          cancelCreation()
+          return
+      }
+      
+      // Determine full path
+      const safeName = name.trim()
+      const path = parentPath ? `${parentPath}/${safeName}` : safeName
+      
+      try {
+          if (type === 'tree') {
+              await createDirectory(path)
+          } else {
+              // Ensure extension for files
+               const filename = safeName.endsWith('.md') ? safeName : `${safeName}.md`
+               
+               // Check for templates before creating
+               const templates = findTemplates()
+               if (templates.length > 0) {
+                   pendingTemplateSelection.value = {
+                       parentPath: parentPath,
+                       filename: filename,
+                       templates: templates
+                   }
+                   cancelCreation() 
+                   return
+               }
+               
+               const filePath = parentPath ? `${parentPath}/${filename}` : filename
+               const content = '# ' + safeName.replace('.md', '')
+               
+               // Create file with tree refresh skipped
+               const data = await createFile(filePath, content, 'Create file', true)
+               
+               // Optimistic Tree Update
+               addToTree(filePath, filename, 'blob', data?.content?.sha || 'pending')
+               
+               // Open file immediately without network fetch
+               currentFilePath.value = filePath
+               currentFileContent.value = content
+               currentFileSha.value = data?.content?.sha || null
+               isDirty.value = false
+               
+               // Note: Background fetchFileTree() was triggered by createFile(..., true)
+          }
+      } catch (e) {
+          console.error(e)
+          throw e
+      } finally {
+          if (!pendingTemplateSelection.value) {
+              cancelCreation() // Reset UI if not moving to template selection
+          }
+      }
+  }
+
+  // Cache for optimistically uploaded files to render immediately
+  const temporaryFiles = ref(new Map<string, { url: string, mime: string }>())
+
+  const uploadFile = async (path: string, file: File) => {
+    if (!octokit.value || !currentRepo.value) return
+    isLoading.value = true
+    error.value = null
+
+    try {
+      // Read file as base64
+      const reader = new FileReader()
+      const base64Content = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+             const result = reader.result
+             if (typeof result === 'string') {
+                const parts = result.split(',')
+                if (parts.length > 1) {
+                    resolve(parts[1])
+                } else {
+                    reject(new Error('Invalid data URL'))
+                }
+             } else {
+                reject(new Error('Failed to read file'))
+             }
+        }
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+
+      // Optimistic cache: Store the Data URL directly for immediate resolution
+      // We reconstruct the Data URL from base64 to be sure, or just use what we have? 
+      // FileReader.readAsDataURL gives us the full data url.
+      // Let's re-read simply for the cache or construct it.
+      const mime = file.type || 'application/octet-stream'
+      const dataUrl = `data:${mime};base64,${base64Content}`
+      temporaryFiles.value.set(path, { url: dataUrl, mime })
+      
+      const { data } = await octokit.value.rest.repos.createOrUpdateFileContents({
+        owner: currentRepo.value.full_name.split('/')[0] ?? '',
+        repo: currentRepo.value.name,
+        path: path,
+        message: `Upload ${file.name}`,
+        content: base64Content,
+        branch: currentBranch.value
+      })
+
+      // We still fetch the tree to eventually consistency
+      await fetchFileTree()
+      return data
+    } catch (e: any) {
+      error.value = "Failed to upload file: " + e.message
+      throw e
+    } finally {
+        isLoading.value = false
+    }
+  }
+
+  const createDirectory = async (path: string) => {
+      // To creating a directory, we create a .keep file inside it
+      const keepFilePath = path.endsWith('/') ? `${path}.keep` : `${path}/.keep`
+      return await createFile(keepFilePath, '', `Create directory ${path}`)
+  }
+
+  const deleteFile = async (path: string, sha: string, message: string = 'Delete file') => {
+    if (!octokit.value || !currentRepo.value) return
+    isLoading.value = true
+    error.value = null
+    try {
+      try {
+          await octokit.value.rest.repos.deleteFile({
+            owner: currentRepo.value.full_name.split('/')[0] ?? '',
+            repo: currentRepo.value.name,
+            path: path,
+            message: message,
+            sha: sha,
+            branch: currentBranch.value
+          })
+      } catch (apiError: any) {
+          if (apiError.status === 404) {
+              console.warn('File not found on GitHub, deleting locally only:', path)
+          } else {
+              throw apiError
+          }
+      }
+      
+      // Update logic...
+      // Remove from tree
+      removeFromTree(path)
+
+      // If we deleted the current file, close it
+      if (currentFilePath.value === path) {
+          currentFilePath.value = null
+          currentFileContent.value = ''
+          currentFileSha.value = null
+          isDirty.value = false
+      }
+      
+      // Clear unsaved changes
+      if (unsavedChanges.value[path]) {
+          delete unsavedChanges.value[path]
+      }
+      
+      // Clear temporary file cache
+      if (temporaryFiles.value.has(path)) {
+          temporaryFiles.value.delete(path)
+      }
+
+      await fetchFileTree()
+    } catch (e: any) {
+      error.value = "Failed to delete file: " + e.message
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const revertFile = async () => {
+      if (!currentFilePath.value) return
+      
+      // Remove from unsaved changes
+      if (unsavedChanges.value[currentFilePath.value]) {
+          delete unsavedChanges.value[currentFilePath.value]
+      }
+      
+      // Reload file (will fetch from remote)
+      await openFile(currentFilePath.value)
+  }
+
+  const moveNode = async (oldPath: string, newPath: string, type: 'blob' | 'tree') => {
+      if (!octokit.value || !currentRepo.value) return
+      isLoading.value = true
+      
+      try {
+          if (type === 'blob') {
+              // 1. Get content (Base64)
+              const content = await getRawContent(oldPath)
+              if (content === null) throw new Error(`Could not read file content for ${oldPath}`)
+              
+              // 2. Create new file with same content
+              await createFile(newPath, content, `Move ${oldPath} to ${newPath}`, true, true)
+              
+              // 3. Delete old file
+              const node = getNodeByPath(oldPath)
+              if (node && node.sha) {
+                   // Pass wait=true to deleteFile so we don't trigger tree refresh yet? 
+                   // deleteFile calls fetchFileTree at the end.
+                   // We should probably optimize this to avoid 2 refreshes.
+                   await deleteFile(oldPath, node.sha, `Delete moved file ${oldPath}`)
+              }
+          } else {
+              // Tree move
+              const node = getNodeByPath(oldPath)
+              if (!node || !node.children) return 
+
+              // Recursive move function
+              // We can't define this inside `moveNode` easily if we want to default export, but inside `defineStore` it's fine.
+              const moveChildren = async (children: FileNode[], oldParent: string, newParent: string) => {
+                  for (const child of children) {
+                      const relativePath = child.path.substring(oldParent.length) // e.g. /child.md (leading slash included usually if paths match?)
+                      // child.path: "folder/child.md", oldParent: "folder" -> "/child.md"
+                      // Actually let's be safer
+                      const childName = child.name
+                      const targetPath = newParent + '/' + childName
+                      
+                      if (child.type === 'blob') {
+                           await moveNode(child.path, targetPath, 'blob')
+                      } else {
+                           if (child.children) {
+                               await createDirectory(targetPath) // Determine if we need to explicitly create dir
+                               await moveChildren(child.children, child.path, targetPath)
+                               // After moving children, we should theoretically delete changes?
+                               // deleteFile implementation handles "File not found" gracefully for deletes so if the old folder is empty it's fine.
+                           }
+                      }
+                  }
+              }
+              
+              // If moving a folder, we first create the new folder
+              await createDirectory(newPath)
+              
+              await moveChildren(node.children, oldPath, newPath)
+              
+              // Cleanup old folder?
+              // The `deleteFile` calls in recursion handle the blobs. 
+              // The old directory structure will disappear from git if empty.
+              // But if we had `.keep` files, they are blobs, so they get moved and deleted.
+              // So the old tree should naturally vanish.
+          }
+          
+          await fetchFileTree()
+      } catch (e: any) {
+          error.value = "Failed to move: " + e.message
+          throw e
+      } finally {
+          isLoading.value = false
+      }
+  }
+
+  const renameNode = async (oldPath: string, newPath: string, type: 'blob' | 'tree') => {
+      return moveNode(oldPath, newPath, type)
+  }
+
+  const hasUnsavedChanges = computed(() => {
+      return Object.keys(unsavedChanges.value).length > 0
+  })
+
+  const revertAll = async () => {
+      // Clear all unsaved changes
+      unsavedChanges.value = {}
+      
+      // Re-fetch current file if it was dirty
+      if (currentFilePath.value && isDirty.value) {
+          await openFile(currentFilePath.value)
+      }
+      
+      isDirty.value = false
+  }
+
+  const removeFromTree = (path: string) => {
+      const parts = path.split('/')
+      const filename = parts.pop()
+      const parentPath = parts.join('/')
+      
+      const remove = (nodes: FileNode[]) => {
+          const idx = nodes.findIndex(n => n.path === path)
+          if (idx !== -1) {
+              nodes.splice(idx, 1)
+              return true
+          }
+          return false
+      }
+
+      if (!parentPath) {
+          // Root
+          remove(fileTree.value)
+      } else {
+          const findParent = (nodes: FileNode[]): FileNode | undefined => {
+                for (const node of nodes) {
+                    if (node.path === parentPath) return node
+                    if (node.children) {
+                        const found = findParent(node.children)
+                        if (found) return found
+                    }
+                }
+          }
+          const parent = findParent(fileTree.value)
+          if (parent && parent.children) {
+              remove(parent.children)
+          }
+      }
+      
+      // Force Vue reactivity by reassigning the array
+      fileTree.value = [...fileTree.value]
+  }
+
   const getRawContent = async (path: string): Promise<string | null> => {
     if (!octokit.value || !currentRepo.value) return null
     
@@ -465,6 +1056,14 @@ export const useGitHubStore = defineStore('github', () => {
   const updateContent = (newContent: string) => {
     currentFileContent.value = newContent
     isDirty.value = true
+    
+    if (currentFilePath.value) {
+        unsavedChanges.value[currentFilePath.value] = {
+            content: newContent,
+            timestamp: Date.now(),
+            sha: currentFileSha.value
+        }
+    }
   }
 
   const getNodeByPath = (path: string): FileNode | undefined => {
@@ -480,6 +1079,85 @@ export const useGitHubStore = defineStore('github', () => {
       return findNode(fileTree.value, path)
   }
 
+  // --- Search & Resolve Logic ---
+
+  const findNodeByPath = (query: string): FileNode | undefined => {
+      if (!query) return undefined
+      
+      // 1. Exact match (fastest) - try exact path first
+      let match = getNodeByPath(query)
+      if (match) return match
+
+      // 2. Recursive search with scoring
+      const candidates: { node: FileNode, type: 'exactName' | 'endsWith' | 'substring' }[] = []
+
+      const search = (nodes: FileNode[]) => {
+          for (const node of nodes) {
+              if (node.type === 'blob') {
+                  if (node.name === query) {
+                      candidates.push({ node, type: 'exactName' })
+                  } else if (node.path.endsWith(query)) {
+                      candidates.push({ node, type: 'endsWith' })
+                  } else if (node.path.toLowerCase().includes(query.toLowerCase())) {
+                      candidates.push({ node, type: 'substring' })
+                  }
+              }
+              if (node.children) {
+                  search(node.children)
+              }
+          }
+      }
+      
+      search(fileTree.value)
+      
+      // Sort candidates by priority
+      candidates.sort((a, b) => {
+          const score = (type: string) => {
+              if (type === 'exactName') return 3
+              if (type === 'endsWith') return 2
+              return 1
+          }
+          return score(b.type) - score(a.type)
+      })
+      
+      return candidates[0]?.node
+  }
+
+  const resolveFileUrl = async (pathOrQuery: string): Promise<{ url: string, mime: string } | null> => {
+      // 0. Check temporary cache first (for immediate optimistic rendering)
+      if (temporaryFiles.value.has(pathOrQuery)) {
+          return temporaryFiles.value.get(pathOrQuery) || null
+      }
+      
+      // Also try to match cache if pathOrQuery is just filename or substring?
+      // User might drop: path/to/file.png. Widget sees that.
+      // If user typed: `![](image.png)`, resolving it might match the cached file if we search cache.
+      // But for drag-drop, we insert the FULL PATH. So exact match on cache should work.
+      // Let's iterate cache if exact match fails, to be robust?
+      // Nah, drag-drop inserts exact path.
+
+      const node = findNodeByPath(pathOrQuery)
+      if (!node) return null
+
+      // If we have a sha, we can try to fetch the blob
+      const raw = await getRawContent(node.path)
+      if (!raw) return null
+
+      // Determine mime type
+      const ext = node.name.split('.').pop()?.toLowerCase() || ''
+      let mime = 'text/plain'
+      if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'ico'].includes(ext)) mime = `image/${ext === 'jpg' ? 'jpeg' : ext}`
+      if (['svg'].includes(ext)) mime = 'image/svg+xml'
+      if (['mp4', 'm4v'].includes(ext)) mime = 'video/mp4'
+      if (['webm'].includes(ext)) mime = 'video/webm'
+      if (['mov'].includes(ext)) mime = 'video/quicktime'
+      
+      return {
+          url: `data:${mime};base64,${raw}`,
+          mime
+      }
+  }
+
   return {
     token,
     showHiddenFiles,
@@ -490,9 +1168,17 @@ export const useGitHubStore = defineStore('github', () => {
     visibleFileTree,
     filteredFileTree,
     getNodeByPath,
+    findNodeByPath,
+    resolveFileUrl,
+    moveNode,
+    renameNode,
     mainFolder,
     currentFilePath,
     currentFileContent,
+    currentFileSha,
+    pendingTemplateSelection,
+    applyTemplate,
+    cancelTemplateSelection,
     isLoading,
     error,
     isDirty,
@@ -500,14 +1186,31 @@ export const useGitHubStore = defineStore('github', () => {
     login,
     logout,
     fetchRepos,
+    fetchRepo,
     selectRepo,
     setMainFolder,
     fetchFileTree,
     openFile,
     saveCurrentFile,
+    createFile,
+    uploadFile,
+    createDirectory,
+    deleteFile,
+    revertFile,
+    revertAll,
+    hasUnsavedChanges,
     getRawContent,
     updateContent,
+    // Creation State
+    pendingCreation,
+    startCreation,
+    cancelCreation,
+    confirmCreation,
+    favorites,
+    sortedRepos,
+    toggleFavorite,
     isBinary: computed(() => {
+      if (forceText.value) return false
       if (!currentFilePath.value) return false
       const lower = currentFilePath.value.toLowerCase()
       const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.bmp', '.ico', '.avif']
