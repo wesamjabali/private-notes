@@ -10,6 +10,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.scss'],
   runtimeConfig: {
     githubClientId: '',
-    githubClientSecret: ''
+    githubClientSecret: '',
+    baseUrl: process.env.BASE_URL || 'http://localhost:3000'
   }
 })

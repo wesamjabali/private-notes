@@ -11,9 +11,8 @@ export default defineEventHandler(async (event) => {
   
   console.log('[Auth] Starting OAuth flow with Client ID:', githubClientId)
 
-  // Determine the base URL dynamically or fallback to localhost
-  const requestUrl = getRequestURL(event)
-  const baseUrl = `${requestUrl.protocol}//${requestUrl.host}`
+  // Use configured base URL
+  const baseUrl = config.baseUrl
   const redirectUri = `${baseUrl}/api/auth/callback`
 
   console.log('[Auth] Redirect URI:', redirectUri)

@@ -1,7 +1,7 @@
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event)
   const { githubClientId, githubClientSecret } = config
-  const requestUrl = getRequestURL(event)
+
   const query = getQuery(event)
   const code = query.code
 
@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
         client_id: githubClientId,
         client_secret: githubClientSecret,
         code,
-        redirect_uri: `${requestUrl.protocol}//${requestUrl.host}/api/auth/callback`
+        redirect_uri: `${config.baseUrl}/api/auth/callback`
       },
       headers: {
         Accept: 'application/json'
