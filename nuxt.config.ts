@@ -24,7 +24,7 @@ export default defineNuxtConfig({
           name: "description",
           content: "Secure, private, and beautiful notes application.",
         },
-        { name: "apple-mobile-web-app-capable", content: "yes" },
+        { name: "mobile-web-app-capable", content: "yes" },
         {
           name: "apple-mobile-web-app-status-bar-style",
           content: "black-translucent",
