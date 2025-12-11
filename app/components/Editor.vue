@@ -134,5 +134,9 @@ const revert = async () => {
   overflow: hidden;
   border-radius: var(--radius-lg);
   background: var(--bg-dark-200);
+
+  @media (max-width: 768px) {
+    border-radius: 0;
+  }
 }
 </style>

@@ -528,7 +528,8 @@ definePageMeta({
   flex-direction: column;
 
   @media (max-width: 768px) {
-    padding: 0 0.5rem 0.5rem 0.5rem; /* Reduce padding on mobile */
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom);
   }
 }
 
