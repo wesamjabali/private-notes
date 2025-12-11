@@ -10,8 +10,8 @@ const store = useGitHubStore()
 const owner = route.params.owner as string
 const repoName = route.params.repo as string
 // path is an array of strings
-const pathSegments = route.params.path as string[] || []
-const filePath = pathSegments.join('/')
+const pathSegments = computed(() => route.params.path as string[] || [])
+const filePath = computed(() => pathSegments.value.join('/'))
 
 const isSidebarOpen = ref(true)
 const isChatOpen = ref(false)
@@ -44,8 +44,8 @@ onMounted(async () => {
     }
 
     // If path exists, open it
-    if (filePath) {
-        await store.openFile(filePath)
+    if (filePath.value) {
+        await store.openFile(filePath.value)
     }
 })
 
