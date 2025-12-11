@@ -48,6 +48,8 @@ const isSidebarOpen = ref(true);
 const isChatOpen = ref(false);
 const sidebarWidth = ref(300); // Default width
 const isResizing = ref(false);
+const chatSidebarWidth = ref(350);
+const isChatResizing = ref(false);
 
 // Close sidebar on route change on mobile
 watch(
@@ -92,6 +94,41 @@ const stopResize = () => {
   isResizing.value = false;
   document.removeEventListener("mousemove", handleResize);
   document.removeEventListener("mouseup", stopResize);
+  document.body.style.cursor = "";
+  document.body.style.userSelect = "";
+};
+
+const startChatResize = () => {
+  isChatResizing.value = true;
+  document.addEventListener("mousemove", handleChatResize);
+  document.addEventListener("mouseup", stopChatResize);
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
+};
+
+const handleChatResize = (e: MouseEvent) => {
+  if (!isChatResizing.value) return;
+
+  // Calculate width from right edge
+  const newWidth = window.innerWidth - e.clientX;
+
+  // Collapse if dragged too small
+  if (newWidth < 100) {
+    isChatOpen.value = false;
+    stopChatResize();
+    chatSidebarWidth.value = 350;
+    return;
+  }
+
+  // Constraints
+  const constrainedWidth = Math.max(250, Math.min(newWidth, 800));
+  chatSidebarWidth.value = constrainedWidth;
+};
+
+const stopChatResize = () => {
+  isChatResizing.value = false;
+  document.removeEventListener("mousemove", handleChatResize);
+  document.removeEventListener("mouseup", stopChatResize);
   document.body.style.cursor = "";
   document.body.style.userSelect = "";
 };
@@ -352,6 +389,7 @@ definePageMeta({
         <Editor v-else />
         <!-- Floating chat toggle for desktop -->
         <button
+          v-if="!isChatOpen"
           class="fab-chat"
           @click="isChatOpen = !isChatOpen"
           title="Gemini AI Help"
@@ -365,9 +403,21 @@ definePageMeta({
           <p class="text-muted">Choose a markdown file from the sidebar</p>
         </div>
       </div>
+    </main>
+
+    <aside
+      class="chat-sidebar glass-panel"
+      :class="{ collapsed: !isChatOpen }"
+      :style="{ width: isChatOpen ? `${chatSidebarWidth}px` : undefined }"
+    >
+      <!-- Resize Handle (Left side) -->
+      <div
+        class="resize-handle-left"
+        @mousedown.prevent="startChatResize"
+      ></div>
 
       <GeminiChat :isOpen="isChatOpen" @close="isChatOpen = false" />
-    </main>
+    </aside>
   </div>
 </template>
 
@@ -776,6 +826,63 @@ definePageMeta({
 
   @media (max-width: 768px) {
     display: none; /* Disable resize on mobile */
+  }
+
+  &:hover,
+  &:active {
+    background: var(--color-primary);
+  }
+}
+
+.chat-sidebar {
+  width: v-bind('chatSidebarWidth + "px"');
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border-subtle);
+  background: var(--bg-dark-100);
+  transition: transform 0.3s ease, width 0.3s ease, opacity 0.3s ease;
+  z-index: 100;
+  overflow: hidden;
+  position: relative;
+
+  &.collapsed {
+    width: 0;
+    border-left: none;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @media (max-width: 768px) {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 100% !important;
+    max-width: 100%;
+    border-left: none;
+
+    &.collapsed {
+      width: 100% !important;
+      transform: translateX(100%);
+      opacity: 1;
+      pointer-events: none;
+    }
+  }
+}
+
+.resize-handle-left {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 101;
+  transition: background 0.2s;
+
+  @media (max-width: 768px) {
+    display: none;
   }
 
   &:hover,

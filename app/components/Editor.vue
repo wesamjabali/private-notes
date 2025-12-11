@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { useGeminiStore } from "~/stores/gemini";
 import { useGitHubStore } from "~/stores/github";
 import ObsidianEditor from "./ObsidianEditor.vue";
 
 const store = useGitHubStore();
+const geminiStore = useGeminiStore();
 
 const save = async () => {
   await store.saveCurrentFile();
@@ -48,6 +50,7 @@ const revert = async () => {
       <ObsidianEditor
         v-if="store.currentFileContent !== null"
         :model-value="store.currentFileContent"
+        :pending-content="geminiStore.pendingChange?.content"
         @update:model-value="store.updateContent"
         @save="save"
       />
