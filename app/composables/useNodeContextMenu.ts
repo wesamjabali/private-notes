@@ -4,8 +4,9 @@ import {
     Folder,
     Pencil,
     Pin,
+    PinOff,
     Trash2,
-    Upload,
+    Upload
 } from "lucide-vue-next";
 import { useFileActions } from "~/composables/useFileActions";
 import { type FileNode, useGitStore } from "~/stores/git";
@@ -136,27 +137,37 @@ export const useNodeContextMenu = () => {
         e.preventDefault();
         e.stopPropagation();
 
+        const actions: ContextMenuAction[] = [
+            {
+                label: "New Note",
+                icon: FileText,
+                action: () => store.startCreation(null, "blob"),
+            },
+            {
+                label: "New Folder",
+                icon: Folder,
+                action: () => store.startCreation(null, "tree"),
+            },
+            {
+                label: "Upload Files",
+                icon: Upload,
+                action: () => triggerUpload(null),
+            },
+        ];
+
+        if (store.mainFolder) {
+            actions.unshift({
+                label: "Unset Root",
+                icon: PinOff,
+                action: () => store.setMainFolder(null),
+            });
+        }
+
         contextMenu.value = {
             visible: true,
             x: e.clientX,
             y: e.clientY,
-            actions: [
-                {
-                    label: "New Note",
-                    icon: FileText,
-                    action: () => store.startCreation(null, "blob"),
-                },
-                {
-                    label: "New Folder",
-                    icon: Folder,
-                    action: () => store.startCreation(null, "tree"),
-                },
-                {
-                    label: "Upload Files",
-                    icon: Upload,
-                    action: () => triggerUpload(null),
-                },
-            ],
+            actions,
         };
     };
     

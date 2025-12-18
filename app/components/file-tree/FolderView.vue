@@ -51,27 +51,23 @@ const getIcon = (node: FileNode) => {
 };
 
 const navigateUp = () => {
-  const parts = props.currentPath.split("/");
-  if (parts.length <= 1) {
-    
-    const [owner, repo] = store.currentRepo!.full_name.split("/");
-    router.push({ path: `/repo/${owner}/${repo}/`, query: route.query });
-  } else {
-    parts.pop(); 
-    const parentPath = parts.join("/");
-    const [owner, repo] = store.currentRepo!.full_name.split("/");
-    router.push({
-      path: `/repo/${owner}/${repo}/${parentPath}`,
-      query: route.query,
-    });
+  const parts = props.currentPath.split("/").filter(Boolean);
+  if (parts.length === 0) {
+    return;
   }
+  parts.pop();
+  const parentPath = parts.join("/");
+  const [owner, repo] = store.currentRepo!.full_name.split("/");
+  router.push({
+    path: `/repo/${owner}/${repo}/${parentPath}`,
+    query: route.query,
+  });
 };
 
-const folders = computed(() =>
-  (props.currentPath ? [{ name: "..", path: ".." }] : []).concat(
-    props.nodes.filter((n) => n.type === "tree")
-  )
-);
+const folders = computed(() => {
+  const backItem = props.currentPath ? [{ name: "..", path: "..", type: "tree" as "tree" | "blob" }] : [];
+  return [...backItem, ...props.nodes.filter((n) => n.type === "tree")];
+});
 const files = computed(() => props.nodes.filter((n) => n.type !== "tree"));
 
 
