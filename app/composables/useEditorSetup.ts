@@ -1,11 +1,11 @@
 
 import {
-  autocompletion,
-  closeBrackets,
-  closeBracketsKeymap,
-  completionKeymap,
+    autocompletion,
+    closeBrackets,
+    closeBracketsKeymap,
+    completionKeymap,
 } from "@codemirror/autocomplete";
-import { history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { history, historyKeymap, indentWithTab, standardKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { lintKeymap } from "@codemirror/lint";
@@ -96,6 +96,7 @@ export function useEditorSetup(emit: any) {
     themeCompartment.of(getThemeExtension()),
 
     keymap.of([
+      ...standardKeymap,
       ...historyKeymap,
       ...searchKeymap,
       ...lintKeymap,
