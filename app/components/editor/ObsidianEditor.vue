@@ -108,6 +108,11 @@ const dropHandler = EditorView.domEventHandlers({
 const extensions = [
   ...baseExtensions, 
   dropHandler, 
+  EditorView.contentAttributes.of({
+    autocorrect: "on",
+    autocapitalize: "sentences",
+    spellcheck: "true",
+  }),
   EditorView.updateListener.of((update) => {
     if (update.docChanged && !props.pendingContent) {
       emit("update:modelValue", update.state.doc.toString());
