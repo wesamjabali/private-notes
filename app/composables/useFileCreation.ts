@@ -41,9 +41,9 @@ export function useFileCreation(
     { deep: true }
   );
 
-  const confirmCreation = async () => {
+  const confirmCreation = async (source?: string) => {
     if (creationName.value) {
-      const result = await store.confirmCreation(creationName.value);
+      const result = await store.confirmCreation(creationName.value, source);
       
       
       if (result?.path && store.currentRepo) {

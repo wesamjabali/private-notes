@@ -515,8 +515,8 @@ definePageMeta({
 
             <div class="sidebar-actions-right">
                 <UiActionDropdown
-                  @new-note="createNote(activeSidebarPath)"
-                  @new-folder="createFolder(activeSidebarPath)"
+                  @new-note="createNote(activeSidebarPath, 'sidebar')"
+                  @new-folder="createFolder(activeSidebarPath, 'sidebar')"
                   @upload="triggerUpload(activeSidebarPath)"
                 />
             </div>
@@ -524,7 +524,7 @@ definePageMeta({
         </div>
 
         <div class="sidebar-content">
-          <FileTree :nodes="store.filteredFileTree" @select="handleFileSelect" />
+          <FileTree :nodes="store.filteredFileTree" @select="handleFileSelect" creation-source="sidebar" />
         </div>
       </template>
 
@@ -581,6 +581,7 @@ definePageMeta({
             v-if="!filePath || isFolder"
             :nodes="!filePath ? rootFolderNodes : folderChildren"
             :current-path="!filePath ? rootFolderPath : filePath"
+            creation-source="main-folder-view"
           />
           <UiMediaViewer
             v-else-if="store.isBinary"

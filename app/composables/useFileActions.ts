@@ -35,17 +35,17 @@ export function useFileActions() {
     return input;
   };
 
-  const createFolder = async (basePath: string | null) => {
+  const createFolder = async (basePath: string | null, source?: string) => {
     console.log(
       "[useFileActions] createFolder called with basePath:",
       basePath
     );
-    store.startCreation(basePath || null, "tree");
+    store.startCreation(basePath || null, "tree", source);
   };
 
-  const createNote = async (basePath: string | null) => {
+  const createNote = async (basePath: string | null, source?: string) => {
     console.log("[useFileActions] createNote called with basePath:", basePath);
-    store.startCreation(basePath || null, "blob");
+    store.startCreation(basePath || null, "blob", source);
   };
 
   const triggerUpload = (basePath: string | null) => {

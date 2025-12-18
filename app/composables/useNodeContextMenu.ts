@@ -27,6 +27,7 @@ export type ContextMenuState = {
 
 export const useNodeContextMenu = () => {
     const store = useGitStore();
+    const uiStore = useUIStore();
     const { triggerUpload } = useFileActions();
 
     const contextMenu = ref<ContextMenuState>({
@@ -51,13 +52,13 @@ export const useNodeContextMenu = () => {
 
                 await store.renameNode(node.path, newPath, node.type);
             } catch (e: any) {
-                await store.openConfirmDialog("Error", e.message, "OK", "");
+                await uiStore.openConfirmDialog("Error", e.message, "OK", "");
             }
         }
     };
 
     const confirmDelete = async (node: FileNode) => {
-        const confirmed = await store.openConfirmDialog(
+        const confirmed = await uiStore.openConfirmDialog(
             "Delete File",
             `Are you sure you want to delete ${node.name}?`,
             "Delete",
@@ -73,12 +74,12 @@ export const useNodeContextMenu = () => {
                     node.type
                 );
             } catch (e: any) {
-                await store.openConfirmDialog("Error", e.message, "OK", "");
+                await uiStore.openConfirmDialog("Error", e.message, "OK", "");
             }
         }
     };
 
-    const handleContextMenu = (e: MouseEvent, node: FileNode, callbacks: { onExpand?: () => void } = {}) => {
+    const handleContextMenu = (e: MouseEvent, node: FileNode, callbacks: { onExpand?: () => void } = {}, source?: string) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -112,7 +113,7 @@ export const useNodeContextMenu = () => {
                     label: "New Note",
                     icon: FileText,
                     action: () => {
-                        store.startCreation(node.path, "blob");
+                        store.startCreation(node.path, "blob", source);
                         callbacks.onExpand?.();
                     },
                 },
@@ -120,7 +121,7 @@ export const useNodeContextMenu = () => {
                     label: "New Folder",
                     icon: Folder,
                     action: () => {
-                        store.startCreation(node.path, "tree");
+                        store.startCreation(node.path, "tree", source);
                         callbacks.onExpand?.();
                     },
                 },
@@ -133,7 +134,7 @@ export const useNodeContextMenu = () => {
         }
     };
 
-    const handleRootContextMenu = (e: MouseEvent) => {
+    const handleRootContextMenu = (e: MouseEvent, source?: string) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -141,12 +142,12 @@ export const useNodeContextMenu = () => {
             {
                 label: "New Note",
                 icon: FileText,
-                action: () => store.startCreation(null, "blob"),
+                action: () => store.startCreation(null, "blob", source),
             },
             {
                 label: "New Folder",
                 icon: Folder,
-                action: () => store.startCreation(null, "tree"),
+                action: () => store.startCreation(null, "tree", source),
             },
             {
                 label: "Upload Files",
@@ -172,7 +173,7 @@ export const useNodeContextMenu = () => {
     };
     
     
-    const handleBackgroundContextMenu = (e: MouseEvent, currentPath: string) => {
+    const handleBackgroundContextMenu = (e: MouseEvent, currentPath: string, source?: string) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -184,12 +185,12 @@ export const useNodeContextMenu = () => {
                 {
                     label: "New Note",
                     icon: FileText,
-                    action: () => store.startCreation(currentPath, "blob"),
+                    action: () => store.startCreation(currentPath, "blob", source),
                 },
                 {
                     label: "New Folder",
                     icon: Folder,
-                    action: () => store.startCreation(currentPath, "tree"),
+                    action: () => store.startCreation(currentPath, "tree", source),
                 },
                 {
                     label: "Upload Files",

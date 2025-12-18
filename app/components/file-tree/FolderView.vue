@@ -17,6 +17,7 @@ import ContextMenu from "./ContextMenu.vue";
 const props = defineProps<{
   nodes: FileNode[];
   currentPath: string;
+  creationSource?: string;
 }>();
 
 const router = useRouter();
@@ -74,8 +75,8 @@ const files = computed(() => props.nodes.filter((n) => n.type !== "tree"));
 const { createFolder, createNote, triggerUpload, handleDrop } =
   useFileActions();
 
-const onNewFolder = () => createFolder(props.currentPath);
-const onNewNote = () => createNote(props.currentPath);
+const onNewFolder = () => createFolder(props.currentPath, props.creationSource);
+const onNewNote = () => createNote(props.currentPath, props.creationSource);
 const onUpload = () => triggerUpload(props.currentPath);
 
 
@@ -131,7 +132,7 @@ const {
     @dragleave="onDragLeave"
     @drop="onDrop"
     @click="closeContextMenu"
-    @contextmenu="handleBackgroundContextMenu($event, props.currentPath)"
+    @contextmenu="handleBackgroundContextMenu($event, props.currentPath, props.creationSource)"
   >
     <ClientOnly>
       <Teleport to="#header-actions">
@@ -159,7 +160,8 @@ const {
             v-if="
               store.pendingCreation &&
               store.pendingCreation.type === 'tree' &&
-              store.pendingCreation.parentPath === currentPath
+              store.pendingCreation.parentPath === currentPath &&
+              ( (!store.pendingCreation.source && !creationSource) || (store.pendingCreation.source === creationSource) )
             "
             class="item-card folder-card creation-card"
             ref="creationCard"
@@ -169,7 +171,7 @@ const {
               <input
                 ref="creationInput"
                 v-model="creationName"
-                @keydown.enter="confirmCreation"
+                @keydown.enter="confirmCreation(creationSource)"
                 @keydown.esc="cancelCreation"
                 class="creation-input"
                 placeholder="New Folder"
@@ -186,7 +188,7 @@ const {
             "
             @contextmenu="
               folder.path !== '..'
-                ? handleContextMenu($event, folder as any)
+                ? handleContextMenu($event, folder as any, {}, creationSource)
                 : undefined
             "
           >
@@ -208,7 +210,8 @@ const {
             v-if="
               store.pendingCreation &&
               store.pendingCreation.type === 'blob' &&
-              store.pendingCreation.parentPath === currentPath
+              store.pendingCreation.parentPath === currentPath &&
+              ( (!store.pendingCreation.source && !creationSource) || (store.pendingCreation.source === creationSource) )
             "
             class="item-card file-card creation-card"
             ref="creationCard"
@@ -220,7 +223,7 @@ const {
                 <input
                   ref="creationInput"
                   v-model="creationName"
-                  @keydown.enter="confirmCreation"
+                  @keydown.enter="confirmCreation(creationSource)"
                   @keydown.esc="cancelCreation"
                   class="creation-input"
                   placeholder="New Note"
@@ -234,7 +237,7 @@ const {
             :key="file.path"
             class="item-card file-card"
             @click="navigateTo(file)"
-            @contextmenu="handleContextMenu($event, file)"
+            @contextmenu="handleContextMenu($event, file, {}, creationSource)"
           >
             <div class="paper-sheet">
               <div class="line"></div>

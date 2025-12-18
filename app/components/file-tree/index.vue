@@ -15,6 +15,7 @@ import ContextMenu from "./ContextMenu.vue";
 const props = defineProps<{
   nodes: FileNode[];
   depth?: number;
+  creationSource?: string;
 }>();
 
 const emit = defineEmits<{
@@ -81,7 +82,7 @@ const handleContextMenu = (e: MouseEvent, node: FileNode) => {
                 toggleFolder(node);
              }
         }
-    });
+    }, props.creationSource);
 
     if (!isRoot) {
         contextMenu.value = localContextMenu.value;
@@ -137,6 +138,33 @@ const { creationName, confirmCreation, cancelCreation } = useFileCreation(
   creationInput, 
   { enableClickOutside: isRoot }
 );
+
+const shouldShowCreationObject = computed(() => {
+    if (!store.pendingCreation) return false;
+    
+    // If we have a creation source logic, check scopes
+    if (props.creationSource) {
+        // If pending creation has a source, it MUST match our source
+        if (store.pendingCreation.source && store.pendingCreation.source !== props.creationSource) {
+            return false;
+        }
+        // If pending creation has NO source, we might optionally default to showing it 
+        // OR we might decide that unscoped creations show everywhere. 
+        // For now, let's assume if we passed a source, we only want to handle creations for that source.
+        if (!store.pendingCreation.source) {
+             return false; 
+        }
+    } else {
+        // If we don't have a creation source (e.g. legacy or unspecified), 
+        // maybe we shouldn't show scoped creations?
+        // Let's say if pendingCreation has a source, and we don't, we hide it?
+        if (store.pendingCreation.source) {
+            return false;
+        }
+    }
+    
+    return true;
+});
 
 
 
@@ -334,7 +362,7 @@ const onDragLeave = (e: DragEvent) => {
       'root-drag-over': depth === undefined && dragOverPath === 'root',
     }"
     :style="{ paddingLeft: depth ? '1rem' : '0' }"
-    @contextmenu="handleRootContextMenu"
+    @contextmenu="handleRootContextMenu($event, creationSource)"
     @dragover="onRootDragOver"
     @drop="onRootDrop"
     @dragleave.self="dragOverPath = null"
@@ -393,7 +421,8 @@ const onDragLeave = (e: DragEvent) => {
         <div
           v-if="
             store.pendingCreation &&
-            store.pendingCreation.parentPath === node.path
+            store.pendingCreation.parentPath === node.path &&
+            shouldShowCreationObject
           "
           class="node-item creation-item"
           ref="creationContainer"
@@ -404,7 +433,7 @@ const onDragLeave = (e: DragEvent) => {
             <UiTextInput
               ref="creationInput"
               v-model="creationName"
-              @keydown.enter="confirmCreation"
+              @keydown.enter="confirmCreation(creationSource)"
               @keydown.esc="cancelCreation"
               class="creation-input"
               placeholder="Name..."
@@ -413,9 +442,9 @@ const onDragLeave = (e: DragEvent) => {
         </div>
 
         <FileTree
-          v-if="node.children && node.children.length > 0"
           :nodes="node.children"
           :depth="(depth || 0) + 1"
+          :creation-source="creationSource"
           @select="emit('select', $event)"
         />
       </div>
@@ -426,7 +455,8 @@ const onDragLeave = (e: DragEvent) => {
       v-if="
         store.pendingCreation &&
         store.pendingCreation.parentPath === null &&
-        depth === undefined
+        depth === undefined &&
+        shouldShowCreationObject
       "
       class="node-item creation-item"
       ref="creationContainer"
@@ -436,7 +466,7 @@ const onDragLeave = (e: DragEvent) => {
         <UiTextInput
           ref="creationInput"
           v-model="creationName"
-          @keydown.enter="confirmCreation"
+          @keydown.enter="confirmCreation(creationSource)"
           @keydown.esc="cancelCreation"
           class="creation-input"
           placeholder="Name..."

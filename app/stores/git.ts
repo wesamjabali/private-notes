@@ -162,6 +162,7 @@ export const useGitStore = defineStore("git", () => {
   const pendingCreation = ref<{
     parentPath: string | null;
     type: "blob" | "tree";
+    source?: string;
   } | null>(null);
 
   const pendingTemplateSelection = ref<{
@@ -986,7 +987,7 @@ export const useGitStore = defineStore("git", () => {
     }
   };
   
-  const startCreation = (parentPath: string | null, type: "blob" | "tree") => { pendingCreation.value = { parentPath, type } as any; };
+  const startCreation = (parentPath: string | null, type: "blob" | "tree", source?: string) => { pendingCreation.value = { parentPath, type, source } as any; };
   const cancelCreation = () => { pendingCreation.value = null; };
 
   const findTemplates = () => {
@@ -1034,9 +1035,16 @@ export const useGitStore = defineStore("git", () => {
   };
 
   const confirmCreation = async (
-    name: string
+    name: string,
+    source?: string
   ): Promise<{ path: string; type: "blob" | "tree" } | null> => {
     if (!pendingCreation.value) return null;
+    
+    // If a source is provided, ensure it matches the pending creation source
+    if (source && pendingCreation.value.source && source !== pendingCreation.value.source) {
+        return null;
+    }
+
     if (!provider.value || !currentRepo.value) {
       ui.error = "Not connected to a repository.";
       return null;
