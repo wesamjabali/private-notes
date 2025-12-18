@@ -1,17 +1,17 @@
 import { syntaxTree } from "@codemirror/language";
 import {
-    EditorState,
-    RangeSetBuilder,
-    StateEffect,
-    StateField,
+  EditorState,
+  RangeSetBuilder,
+  StateEffect,
+  StateField,
 } from "@codemirror/state";
 import type { DecorationSet } from "@codemirror/view";
 import {
-    Decoration,
-    EditorView,
-    ViewPlugin,
-    ViewUpdate,
-    WidgetType,
+  Decoration,
+  EditorView,
+  ViewPlugin,
+  ViewUpdate,
+  WidgetType,
 } from "@codemirror/view";
 
  
@@ -749,11 +749,12 @@ const livePreviewPlugin = ViewPlugin.fromClass(
               typeName === "Image" || 
               typeName === "URL" ||
               typeName.startsWith("ATXHeading") ||
-              typeName === "Blockquote" 
+              typeName === "Blockquote" ||
+              typeName === "Highlight"
             ) {
                
                
-               if (typeName.includes("Code") || typeName === "Link" || typeName === "Image") {
+               if (typeName.includes("Code") || typeName === "Link" || typeName === "Image" || typeName === "Highlight") {
                    occupied.push({ from: nodeFrom, to: nodeTo });
                }
             }
@@ -796,6 +797,15 @@ const livePreviewPlugin = ViewPlugin.fromClass(
                        decos.push({ from: nodeTo - markerLen, to: nodeTo, deco: Decoration.replace({}) });
                    }
                }
+            }
+
+            else if (typeName === "Highlight") {
+                const overlapped = isCursorInside(state, nodeFrom, nodeTo);
+                if (!overlapped) {
+                     decos.push({ from: nodeFrom, to: nodeFrom + 2, deco: Decoration.replace({}) });
+                     decos.push({ from: nodeFrom + 2, to: nodeTo - 2, deco: Decoration.mark({ class: "cm-md-mark" }) });
+                     decos.push({ from: nodeTo - 2, to: nodeTo, deco: Decoration.replace({}) });
+                }
             }
 
             

@@ -1,9 +1,9 @@
 
 import {
-    autocompletion,
-    closeBrackets,
-    closeBracketsKeymap,
-    completionKeymap,
+  autocompletion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
 } from "@codemirror/autocomplete";
 import { history, historyKeymap, indentWithTab, standardKeymap } from "@codemirror/commands";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -19,6 +19,7 @@ import { inlineSuggestionExtension } from "~/codemirror/InlineSuggestionExtensio
 
 import { livePreviewExtension } from "~/codemirror/LivePreviewExtension";
 
+import { highlight } from "~/codemirror/HighlightLezerExtension";
 import { obsidianStyles } from "~/codemirror/ObsidianTheme";
 
 export function useEditorSetup(emit: any) {
@@ -115,6 +116,7 @@ export function useEditorSetup(emit: any) {
     markdown({
       base: markdownLanguage,
       codeLanguages: languages,
+      extensions: [highlight],
     }),
     obsidianStyles,
     livePreviewExtension,
