@@ -7,7 +7,8 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "start": "nuxt start"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.0",
@@ -22,10 +23,23 @@
     "@codemirror/view": "^6.39.0",
     "@google/generative-ai": "^0.24.1",
     "@pinia/nuxt": "^0.11.3",
+    "@types/markdown-it-footnote": "^3.0.4",
     "@vueuse/core": "^14.1.0",
     "@vueuse/nuxt": "^14.1.0",
     "codemirror": "^6.0.2",
+    "idb-keyval": "^6.2.2",
+    "katex": "^0.16.27",
+    "lucide-vue-next": "^0.561.0",
     "markdown-it": "^14.1.0",
+    "markdown-it-abbr": "^2.0.0",
+    "markdown-it-container": "^4.0.0",
+    "markdown-it-deflist": "^3.0.0",
+    "markdown-it-footnote": "^4.0.0",
+    "markdown-it-katex": "^2.0.3",
+    "markdown-it-mark": "^4.0.0",
+    "markdown-it-sub": "^2.0.0",
+    "markdown-it-sup": "^2.0.0",
+    "mermaid": "^11.12.2",
     "nuxt": "^4.2.1",
     "octokit": "^5.0.5",
     "pinia": "^3.0.4",
@@ -34,5 +48,10 @@
     "vue-codemirror": "^6.1.1",
     "vue-router": "^4.6.3"
   },
-  "packageManager": "pnpm@9.12.2+sha512.22721b3a11f81661ae1ec68ce1a7b879425a1ca5b991c975b074ac220b187ce56c708fe5db69f4c962c989452eee76c82877f4ee80f474cebd61ee13461b6228"
+  "packageManager": "pnpm@9.12.2+sha512.22721b3a11f81661ae1ec68ce1a7b879425a1ca5b991c975b074ac220b187ce56c708fe5db69f4c962c989452eee76c82877f4ee80f474cebd61ee13461b6228",
+  "devDependencies": {
+    "@lezer/highlight": "^1.2.3",
+    "@types/markdown-it": "^14.1.2",
+    "@types/node": "^25.0.0"
+  }
 }
