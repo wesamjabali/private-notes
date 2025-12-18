@@ -600,15 +600,38 @@ export const useGitStore = defineStore("git", () => {
         const [ owner ] = currentRepo.value.full_name.split("/");
         const safeOwner = currentRepo.value.owner.login || owner || ""; 
 
-        const response = await provider.value.updateFile(
-            safeOwner,
-            currentRepo.value.name,
-            currentFilePath.value,
-            currentFileContent.value,
-            currentFileSha.value,
-            message,
-            currentBranch.value
-        );
+        const performSave = async (sha: string) => {
+            return await provider.value!.updateFile(
+                safeOwner,
+                currentRepo.value!.name,
+                currentFilePath.value!,
+                currentFileContent.value!,
+                sha,
+                message,
+                currentBranch.value
+            );
+        };
+
+        let response;
+        try {
+            response = await performSave(currentFileSha.value);
+        } catch (e: any) {
+             // Handle 409 Conflict or SHA mismatch
+             if (e.status === 409 || e.message?.includes("sha") || e.message?.includes("match pending")) {
+                 console.warn("Conflict detected, fetching latest SHA and retrying...");
+                 // Fetch latest SHA
+                 const { sha } = await provider.value.getFile(
+                     safeOwner,
+                     currentRepo.value.name,
+                     currentFilePath.value,
+                     currentBranch.value
+                 );
+                 // Retry with new SHA
+                 response = await performSave(sha);
+             } else {
+                 throw e;
+             }
+        }
         
         if (response?.content?.sha) {
             currentFileSha.value = response.content.sha;
