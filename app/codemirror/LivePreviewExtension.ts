@@ -612,6 +612,24 @@ class MathWidget extends WidgetType {
   }
 }
 
+class HorizontalRuleWidget extends WidgetType {
+  constructor() {
+    super();
+  }
+
+  override eq(other: WidgetType) {
+    return other instanceof HorizontalRuleWidget;
+  }
+
+  override toDOM() {
+    const div = document.createElement("div");
+    div.className = "cm-md-hr";
+    const hr = document.createElement("hr");
+    div.appendChild(hr);
+    return div;
+  }
+}
+
 class CalloutHeaderWidget extends WidgetType {
   constructor(readonly title: string, readonly type: string) {
     super();
@@ -801,6 +819,13 @@ const livePreviewPlugin = ViewPlugin.fromClass(
             }
 
             
+            else if (typeName === "HorizontalRule") {
+                const overlapped = isCursorInside(state, nodeFrom, nodeTo);
+                if (!overlapped) {
+                    decos.push({ from: nodeFrom, to: nodeTo, deco: Decoration.replace({ widget: new HorizontalRuleWidget() }) });
+                }
+            }
+
             else if (typeName === "TaskMarker") {
                 const text = doc.sliceString(nodeFrom, nodeTo);
                 const isChecked = text.toLowerCase().includes("x");

@@ -599,7 +599,7 @@ export const useGitStore = defineStore("git", () => {
         const [ owner ] = currentRepo.value.full_name.split("/");
         const safeOwner = currentRepo.value.owner.login || owner || ""; 
 
-        await provider.value.updateFile(
+        const response = await provider.value.updateFile(
             safeOwner,
             currentRepo.value.name,
             currentFilePath.value,
@@ -608,6 +608,10 @@ export const useGitStore = defineStore("git", () => {
             message,
             currentBranch.value
         );
+        
+        if (response?.content?.sha) {
+            currentFileSha.value = response.content.sha;
+        }
         
         originalFileContent.value = currentFileContent.value;
         isDirty.value = false;

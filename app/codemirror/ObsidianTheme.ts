@@ -201,6 +201,17 @@ export const obsidianTheme = EditorView.theme(
       paddingLeft: "0.5em",
       opacity: "0.8",
     },
+    ".cm-md-hr": {
+      marginTop: "1.5em",
+      marginBottom: "1.5em",
+      opacity: "0.6",
+      cursor: "pointer",
+    },
+    ".cm-md-hr hr": {
+      border: "none",
+      borderTop: "2px solid var(--text-faint, #999)",
+      margin: "0",
+    },
     ".cm-md-link": {
       color: "var(--text-accent)",
       textDecoration: "none",
