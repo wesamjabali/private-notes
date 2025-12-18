@@ -5,14 +5,14 @@ import { useGitStore, type FileNode } from "~/stores/git";
 
 import { useMediaQuery } from "@vueuse/core";
 import {
-    ArrowLeft,
-    ChevronLeft,
-    Menu,
-    Search,
-    Settings,
-    Sparkles,
-    Trash2,
-    X
+  ArrowLeft,
+  ChevronLeft,
+  Menu,
+  Search,
+  Settings,
+  Sparkles,
+  Trash2,
+  X
 } from "lucide-vue-next";
 import TextInput from "~/components/ui/TextInput.vue";
 import { useFileActions } from "~/composables/useFileActions";
@@ -663,13 +663,7 @@ definePageMeta({
     pointer-events: none;
 
      
-    &:hover {
-      width: 300px;
-      opacity: 1;
-      pointer-events: auto;
-      border-right: 1px solid var(--border-subtle);
-      box-shadow: 20px 0 50px rgba(0,0,0,0.5);  
-    }
+
   }
 
   @media (max-width: 640px) {
