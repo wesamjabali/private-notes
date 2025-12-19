@@ -1,0 +1,13 @@
+services:
+  private-notes:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NUXT_GITHUB_CLIENT_ID=${NUXT_GITHUB_CLIENT_ID}
+      - NUXT_GITHUB_CLIENT_SECRET=${NUXT_GITHUB_CLIENT_SECRET}
+      - BASE_URL=${BASE_URL:-http://localhost:3000}
+      - GITHUB_PAT=${GITHUB_PAT}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - NUXT_GITLAB_CLIENT_ID=${NUXT_GITLAB_CLIENT_ID}
+      - NUXT_GITLAB_CLIENT_SECRET=${NUXT_GITLAB_CLIENT_SECRET}

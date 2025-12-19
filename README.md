@@ -1,87 +1,91 @@
 # GitNotes
 
-GitNotes is a secure, private, and beautiful notes application built with Nuxt 3. It leverages GitHub for storage and authentication, providing a seamless experience for managing your markdown notes directly from your repositories. It also features AI integration using Google's Gemini.
+> **Secure, Git-based Markdown Editor.**  
+> *Own your data. Edit locally or in the browser. Sync with Git.*
 
-## Features
+![GitNotes Hero](public/hero.png)
 
-- **GitHub Integration**: Authenticate with GitHub and manage your repositories directly.
-- **Markdown Editor**: Powerful markdown editing experience powered by CodeMirror 6.
-- **AI Assistant**: Built-in chat interface with Google Gemini for assistance and content generation.
-- **Private & Secure**: Your notes are stored in your own GitHub repositories.
-- **PWA Support**: Installable as a Progressive Web App for a native-like experience.
-- **Dark Mode**: Optimized for comfortable viewing and editing.
+## ✨ Features
 
-## Tech Stack
+-   **Git Integration**: Seamlessly sync with **GitHub**, **GitLab**, **Gitea**, and **Forgejo**.
+-   **Local First**: Edit files directly on your device using the **File System Access API**.
+-   **Rich Editor**: Powered by **CodeMirror 6**, featuring syntax highlighting, vim mode, and standard shortcuts.
+-   **Markdown Pro**:
+    -   GitHub Flavored Markdown (GFM)
+    -   Math support with $\KaTeX$
+    -   Diagrams with **Mermaid**
+    -   GitHub Alerts (Note, Tip, Important, Warning, Caution)
+-   **PWA Ready**: Install as a Progressive Web App on iOS, Android, and Desktop.
+-   **Modern UI**: Beautiful glassmorphism, dark/light modes, and responsive design.
 
-- **Framework**: [Nuxt 3](https://nuxt.com/)
-- **UI Library**: Vue 3
-- **State Management**: [Pinia](https://pinia.vuejs.org/)
-- **Editor**: [CodeMirror 6](https://codemirror.net/)
-- **Icons**: [Lucide](https://lucide.dev/)
-- **AI**: [Google Generative AI (Gemini)](https://ai.google.dev/)
-- **GitHub API**: [Octokit](https://github.com/octokit/octokit.js)
+## 🐳 Self-Hosting
 
-## Prerequisites
+You can easily self-host GitNotes using Docker Compose. The image is available on the basic GitHub Container Registry.
 
-- Node.js (Latest LTS recommended)
-- pnpm (Package manager)
+### Docker Compose
 
-## Setup
+Create a `docker-compose.yml` file:
 
-1. **Clone the repository:**
-
-   ```bash
-   git clone <repository-url>
-   cd private-notes
-   ```
-
-2. **Install dependencies:**
-
-   ```bash
-   pnpm install
-   ```
-
-3. **Environment Configuration:**
-
-   Create a `.env` file in the root directory and add the following variables:
-
-   ```env
-   # GitHub OAuth App Credentials
-   GITHUB_CLIENT_ID=your_github_client_id
-   GITHUB_CLIENT_SECRET=your_github_client_secret
-
-   # Base URL for the application (default: http://localhost:3000)
-   BASE_URL=http://localhost:3000
-
-   # Optional: Personal Access Token for GitHub (if not using OAuth flow)
-   GITHUB_PAT=your_github_pat
-
-   # Google Gemini API Key for AI features
-   GEMINI_API_KEY=your_gemini_api_key
-   ```
-
-4. **Run the development server:**
-
-   ```bash
-   pnpm dev
-   ```
-
-   The application will be available at `http://localhost:3000`.
-
-## Building for Production
-
-To build the application for production:
-
-```bash
-pnpm build
+```yaml
+services:
+  private-notes:
+    image: ghcr.io/wesamjabali/private-notes:latest
+    container_name: private-notes
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Required for GitHub/GitLab integration
+      - NUXT_GITHUB_CLIENT_ID=your_github_client_id
+      - NUXT_GITHUB_CLIENT_SECRET=your_github_client_secret
+      # Optional: For GitLab
+      - NUXT_GITLAB_CLIENT_ID=your_gitlab_client_id
+      - NUXT_GITLAB_CLIENT_SECRET=your_gitlab_client_secret
+      # Base URL (default is http://localhost:3000)
+      - BASE_URL=https://your-domain.com
 ```
 
-To preview the production build:
+### Environment Variables
+
+| Variable | Description | Required |
+| :--- | :--- | :--- |
+| `NUXT_GITHUB_CLIENT_ID` | OAuth Client ID for GitHub | Yes (for GitHub) |
+| `NUXT_GITHUB_CLIENT_SECRET` | OAuth Client Secret for GitHub | Yes (for GitHub) |
+| `BASE_URL` | The URL where the app is hosted | No (Default: localhost:3000) |
+| `NUXT_GITLAB_CLIENT_ID` | OAuth Client ID for GitLab | No |
+| `NUXT_GITLAB_CLIENT_SECRET` | OAuth Client Secret for GitLab | No |
+
+## 🛠️ Development
+
+### Prerequisites
+
+-   Node.js 18+
+-   pnpm
+
+### Setup
 
 ```bash
-pnpm preview
+# Install dependencies
+pnpm install
+
+# Run development server
+pnpm dev
+# or
+npm run dev
 ```
 
-## License
+Open [http://localhost:3000](http://localhost:3000) to view the app.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1.  Fork the repository
+2.  Create your feature branch (`git checkout -b feature/amazing-feature`)
+3.  Commit your changes (`git commit -m 'Add some amazing feature'`)
+4.  Push to the branch (`git push origin feature/amazing-feature`)
+5.  Open a Pull Request
+
+## 📄 License
 
 [MIT](LICENSE)
