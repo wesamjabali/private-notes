@@ -70,8 +70,9 @@ pnpm install
 
 # Run development server
 pnpm dev
-# or
-npm run dev
+
+# Run within Docker (with HMR)
+pnpm docker:dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
