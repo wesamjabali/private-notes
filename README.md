@@ -3,7 +3,7 @@
 > **Secure, Git-based Markdown Editor.**  
 > *Own your data. Edit locally or in the browser. Sync with Git.*
 
-![GitNotes Hero](public/hero.png)
+![GitNotes Hero](public/hero.jpeg)
 
 ## ✨ Features
 
