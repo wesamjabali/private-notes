@@ -118,7 +118,7 @@ const supportsFileSystemAccess = typeof window !== 'undefined' && 'showDirectory
     <UiAnimatedBackground v-if="!store.token" />
     <div v-if="!store.token" class="login-screen flex-center">
       <div class="glass-panel login-card">
-        <h1 class="text-gradient">GitNotes</h1>
+        <h1 class="text-gradient">Biruni</h1>
         <p class="subtitle">Secure, Git-based Markdown Editor</p>
 
         

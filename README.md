@@ -1,9 +1,9 @@
-# GitNotes
+# Biruni
 
 > **Secure, Git-based Markdown Editor.**  
 > *Own your data. Edit locally or in the browser. Sync with Git.*
 
-![GitNotes Hero](public/hero.jpeg)
+![Biruni Hero](public/hero.jpeg)
 
 ## ✨ Features
 
@@ -20,7 +20,7 @@
 
 ## 🐳 Self-Hosting
 
-You can easily self-host GitNotes using Docker Compose. The image is available on the basic GitHub Container Registry.
+You can easily self-host Biruni using Docker Compose. The image is available on the basic GitHub Container Registry.
 
 ### Docker Compose
 
@@ -28,9 +28,9 @@ Create a `docker-compose.yml` file:
 
 ```yaml
 services:
-  private-notes:
-    image: ghcr.io/wesamjabali/private-notes:latest
-    container_name: private-notes
+  biruni:
+    image: ghcr.io/wesamjabali/biruni:latest
+    container_name: biruni
     restart: unless-stopped
     ports:
       - "3000:3000"

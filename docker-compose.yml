@@ -1,6 +1,7 @@
 services:
-  private-notes:
-    build: .
+  biruni:
+    image: ghcr.io/wesamjabali/biruni:latest
+    container_name: biruni
     ports:
       - "3000:3000"
     environment:

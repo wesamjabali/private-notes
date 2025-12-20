@@ -20,8 +20,8 @@ export class BrowserProvider implements GitProvider {
     return [
       {
         id: "browser-storage",
-        name: "private-notes",
-        full_name: "browser/private-notes",
+        name: "biruni",
+        full_name: "browser/biruni",
         default_branch: "main",
         description: "Browser Storage (IndexedDB)",
         updated_at: new Date().toISOString(),
@@ -34,7 +34,7 @@ export class BrowserProvider implements GitProvider {
 
   async getRepo(owner: string, name: string): Promise<Repo> {
     const repos = await this.listRepos();
-    return repos[0];
+    return repos[0]!;
   }
 
   async getBranch(owner: string, repo: string, branch: string): Promise<any> {

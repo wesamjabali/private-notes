@@ -1,0 +1,25 @@
+name: Sync Release Branch
+
+on:
+  push:
+    tags:
+      - '*'
+
+concurrency:
+  group: release-branch-sync
+  cancel-in-progress: true
+
+jobs:
+  sync-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+
+      - name: Force update release branch
+        run: |
+          git push origin HEAD:release --force

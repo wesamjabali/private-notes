@@ -19,7 +19,7 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: "GitNotes",
+      title: "Biruni",
       meta: [
         { charset: "utf-8" },
         {
@@ -37,7 +37,7 @@ export default defineNuxtConfig({
           content: "black-translucent",
         },
         { name: "theme-color", content: "#1e1e1e" },
-        { property: "og:title", content: "GitNotes" },
+        { property: "og:title", content: "Biruni" },
         {
           property: "og:description",
           content:
